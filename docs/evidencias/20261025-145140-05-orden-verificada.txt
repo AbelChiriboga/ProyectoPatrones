@@ -1,0 +1,2 @@
+[{"id": 1, "name": "Caja Principal - 000001", "pos_reference": "260-2-000001", "state": "paid", "amount_total": 7.76, "amount_tax": 1.01, "amount_paid": 7.76, "session_id": [2, "Caja Principal/00002"], "lines": [1, 2], "payment_ids": [1]}]
+HTTP 200

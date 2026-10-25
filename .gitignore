@@ -1,0 +1,18 @@
+# Secretos
+infra/.env
+*.env.local
+**/appsettings.*.local.json
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Node (frontend, semana 2)
+node_modules/
+dist/
+
+# Office
+~$*

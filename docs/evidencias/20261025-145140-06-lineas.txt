@@ -1,0 +1,2 @@
+[{"id": 1, "product_id": [11, "[CAFE-001] Café americano"], "qty": 2.0, "price_unit": 1.5, "price_subtotal": 3.0, "price_subtotal_incl": 3.45}, {"id": 2, "product_id": [12, "[SAND-001] Sánduche de pollo"], "qty": 1.0, "price_unit": 3.75, "price_subtotal": 3.75, "price_subtotal_incl": 4.31}]
+HTTP 200

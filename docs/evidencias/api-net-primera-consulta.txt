@@ -1,0 +1,48 @@
+### GET /api/products
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+[{"id":11,"code":"CAFE-001","name":"Café americano","unitPrice":1.5,"taxIds":[1],"quantityAvailable":null},{"id":14,"code":"GALL-001","name":"Galletas de avena","unitPrice":0.9,"taxIds":[1],"quantityAvailable":null},{"id":13,"code":"JUGO-001","name":"Jugo natural de naranja","unitPrice":2.25,"taxIds":[1],"quantityAvailable":null},{"id":2,"code":"FEE","name":"Service Fee","unitPrice":0.0,"taxIds":[],"quantityAvailable":null},{"id":12,"code":"SAND-001","name":"Sánduche de pollo","unitPrice":3.75,"taxIds":[1],"quantityAvailable":null}]
+
+
+### GET /api/products?search=CAFE-001
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+[{"id":11,"code":"CAFE-001","name":"Café americano","unitPrice":1.5,"taxIds":[1],"quantityAvailable":null}]
+
+
+### GET /api/products?search=jugo
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+[{"id":13,"code":"JUGO-001","name":"Jugo natural de naranja","unitPrice":2.25,"taxIds":[1],"quantityAvailable":null}]
+
+
+### GET /api/products?search=no-existe
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+[]
+
+
+### GET /api/pos/sessions/active
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+
+{"id":2,"name":"Caja Principal/00002","state":"Opened","configId":2,"currencyCode":"USD","paymentMethodIds":[3]}
+
+
+### GET /api/products?limit=0
+HTTP/1.1 400 Bad Request
+Content-Type: application/problem+json
+
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.1","title":"Datos inválidos","status":400,"detail":"El límite debe estar entre 1 y 200.","code":"products.invalid_limit","traceId":"00-c0be3992e766555cfb94512432d1f613-f13780438541901a-00"}
+
+
+### GET /api/products con Odoo detenido
+HTTP/1.1 503 Service Unavailable
+Content-Type: application/problem+json
+
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.6.4","title":"Odoo no está disponible","status":503,"detail":"No fue posible comunicarse con Odoo (product.product.search_read).","code":"odoo.unavailable","traceId":"00-e571cfd1f75e7fce4aa02559b2f8b65d-5ff9d538a306ae21-00"}
+

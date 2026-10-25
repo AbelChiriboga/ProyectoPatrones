@@ -1,0 +1,11 @@
+{"orders": [{
+  "uuid": "db3ec28a-2a18-4206-aa7b-a973d91d8546", "session_id": 2, "state": "paid", "date_order": "2026-10-25 19:51:40",
+  "amount_tax": 1.01, "amount_total": 7.76, "amount_paid": 7.76, "amount_return": 0,
+  "lines": [
+    [0, 0, {"product_id": 11, "qty": 2, "price_unit": 1.50, "discount": 0,
+            "price_subtotal": 3.00, "price_subtotal_incl": 3.45, "tax_ids": [[6, 0, [1]]]}],
+    [0, 0, {"product_id": 12, "qty": 1, "price_unit": 3.75, "discount": 0,
+            "price_subtotal": 3.75, "price_subtotal_incl": 4.31, "tax_ids": [[6, 0, [1]]]}]
+  ],
+  "payment_ids": [[0, 0, {"payment_method_id": 3, "amount": 7.76, "payment_date": "2026-10-25 19:51:40"}]]
+}]}

@@ -1,0 +1,2 @@
+[{"id": 1, "payment_method_id": [3, "Efectivo"], "amount": 7.76, "payment_date": "2026-10-25 19:51:40"}]
+HTTP 200
