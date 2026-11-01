@@ -18,6 +18,7 @@ public sealed class PosExceptionHandler(IProblemDetailsService problemDetails, I
             ValidationException e => (StatusCodes.Status400BadRequest, e.Code, "Datos inválidos"),
             DomainException e => (StatusCodes.Status422UnprocessableEntity, e.Code, "Regla de negocio incumplida"),
             NotFoundException e => (StatusCodes.Status404NotFound, e.Code, "Recurso no encontrado"),
+            AuthenticationFailedException e => (StatusCodes.Status401Unauthorized, e.Code, "No autenticado"),
             IntegrationException { Kind: IntegrationFailureKind.Timeout } =>
                 (StatusCodes.Status504GatewayTimeout, "odoo.timeout", "Odoo no respondió a tiempo"),
             IntegrationException { Kind: IntegrationFailureKind.Unavailable } =>

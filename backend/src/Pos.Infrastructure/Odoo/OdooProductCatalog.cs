@@ -27,13 +27,39 @@ public sealed class OdooProductCatalog(OdooJson2Client odoo) : IProductCatalog
         return result.EnumerateArray().Select(ToProduct).ToList();
     }
 
-    /// <summary>Solo productos vendibles y habilitados en el POS; búsqueda por nombre, código interno o código de barras.</summary>
+        public async Task<IReadOnlyList<Product>> GetByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+            return [];
+
+        var domain = new List<object>(BuildDomain(null))
+        {
+            new object[] { "id", "in", ids.ToArray() },
+        };
+
+        var result = await odoo.CallAsync("product.product", "search_read", new
+        {
+            domain = domain.ToArray(),
+            fields = Fields,
+        }, cancellationToken);
+
+        if (result.ValueKind != JsonValueKind.Array)
+            throw new IntegrationException(IntegrationFailureKind.InvalidResponse, "Odoo devolvió un catálogo con formato inesperado.");
+
+        return result.EnumerateArray().Select(ToProduct).ToList();
+    }
+
+        /// <summary>
+    /// Solo productos vendibles y habilitados en el POS; búsqueda por nombre, código interno o código de barras.
+    /// Se excluye "Service Fee" (código FEE), un producto auxiliar que crea el módulo POS y no es vendible.
+    /// </summary>
     internal static object[] BuildDomain(string? term)
     {
         var domain = new List<object>
         {
             new object[] { "sale_ok", "=", true },
             new object[] { "available_in_pos", "=", true },
+            new object[] { "default_code", "!=", "FEE" },
         };
         if (term is not null)
         {
