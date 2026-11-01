@@ -1,4 +1,10 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Pos.Api.ErrorHandling;
+using Pos.Api.Security;
+using Pos.Application.Auth;
 using Pos.Application;
 using Pos.Infrastructure;
 
@@ -9,6 +15,27 @@ Console.WriteLine($"Entorno: {builder.Environment.EnvironmentName} | Odoo:ApiKey
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Autenticación del operador: JWT firmado con una clave que solo existe en user-secrets / variables de entorno.
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((bearer, jwtOptions) =>
+    {
+        var jwt = jwtOptions.Value;
+        bearer.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+            ClockSkew = TimeSpan.FromMinutes(1),
+        };
+    });
+builder.Services.AddAuthorization();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -30,7 +57,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors(FrontendCors);
-app.MapControllers();
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Todo exige token salvo los endpoints marcados con [AllowAnonymous] (login).
+app.MapControllers().RequireAuthorization();
 
 app.Run();
 

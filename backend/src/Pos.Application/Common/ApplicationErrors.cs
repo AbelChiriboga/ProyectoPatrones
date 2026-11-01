@@ -29,3 +29,9 @@ public sealed class NotFoundException(string code, string message) : Exception(m
 {
     public string Code { get; } = code;
 }
+
+/// <summary>Credenciales incorrectas o ausentes (se traduce a HTTP 401).</summary>
+public sealed class AuthenticationFailedException(string code, string message) : Exception(message)
+{
+    public string Code { get; } = code;
+}

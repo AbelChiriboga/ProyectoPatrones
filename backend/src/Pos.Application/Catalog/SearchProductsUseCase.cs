@@ -7,6 +7,9 @@ namespace Pos.Application.Catalog;
 public interface IProductCatalog
 {
     Task<IReadOnlyList<Product>> SearchAsync(string? term, int limit, CancellationToken cancellationToken);
+
+    /// <summary>Productos vendibles en el POS con esos identificadores; los que no existan simplemente no se devuelven.</summary>
+    Task<IReadOnlyList<Product>> GetByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken);
 }
 
 public sealed record ProductDto(int Id, string? Code, string Name, decimal UnitPrice, IReadOnlyList<int> TaxIds, decimal? QuantityAvailable)

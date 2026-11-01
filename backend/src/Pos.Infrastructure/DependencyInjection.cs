@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Pos.Application.Auth;
 using Pos.Application.Catalog;
 using Pos.Application.Sessions;
 using Pos.Infrastructure.Odoo;
+using Pos.Infrastructure.Security;
 
 namespace Pos.Infrastructure;
 
@@ -22,6 +24,9 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(odoo.BaseUrl.TrimEnd('/') + "/");
             client.Timeout = TimeSpan.FromSeconds(odoo.TimeoutSeconds);
         });
+
+        services.Configure<OperatorsOptions>(configuration.GetSection(OperatorsOptions.SectionName));
+        services.AddSingleton<IOperatorAuthenticator, ConfiguredOperatorAuthenticator>();
 
         services.AddScoped<IProductCatalog, OdooProductCatalog>();
         services.AddScoped<IPosSessionGateway, OdooPosSessionGateway>();

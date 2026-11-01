@@ -6,7 +6,7 @@ namespace Pos.UnitTests.Application;
 
 public sealed class SearchProductsUseCaseTests
 {
-    private sealed class FakeCatalog(params Product[] products) : IProductCatalog
+        private sealed class FakeCatalog(params Product[] products) : IProductCatalog
     {
         public string? ReceivedTerm { get; private set; }
         public int ReceivedLimit { get; private set; }
@@ -17,6 +17,9 @@ public sealed class SearchProductsUseCaseTests
             ReceivedLimit = limit;
             return Task.FromResult<IReadOnlyList<Product>>(products);
         }
+
+        public Task<IReadOnlyList<Product>> GetByIdsAsync(IReadOnlyCollection<int> ids, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Product>>(products.Where(p => ids.Contains(p.Id)).ToList());
     }
 
     [Fact]

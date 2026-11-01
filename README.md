@@ -1,10 +1,11 @@
 # POS integrado con Odoo 20 Community — Proyecto integrador de Patrones de Software
 
-Estado: **Semana 1 completada** (requisitos, investigación inicial, diseño arquitectónico, instalación de Odoo,
-primera consulta integrada y prueba temprana de registro de venta). El frontend se desarrolla a partir de la semana 2.
+Estado: **Semana 2** (carrito, descuentos con Strategy, login del operador y frontend React) sobre la **semana 1**
+completada (requisitos, investigación inicial, diseño arquitectónico, instalación de Odoo, primera consulta integrada y
+prueba temprana de registro de venta).
 
 ```
-Frontend (semana 2)  →  API REST ASP.NET Core (.NET 10)  →  Odoo 20 Community (JSON-2)  →  PostgreSQL
+Frontend React        →  API REST ASP.NET Core (.NET 10)  →  Odoo 20 Community (JSON-2)  →  PostgreSQL
 ```
 
 ## Estructura
@@ -49,6 +50,14 @@ El script crea la base `pos_db` con `point_of_sale`, el impuesto IVA 15 %, cuatr
 dotnet user-secrets set "Odoo:ApiKey" "<api-key>" --project backend/src/Pos.Api
 ```
 
+Además, la semana 2 exige una clave para firmar los tokens y al menos un operador (también en user-secrets):
+
+```bash
+dotnet user-secrets set "Jwt:Key" "<texto-aleatorio-de-32-o-mas-caracteres>" --project backend/src/Pos.Api
+dotnet user-secrets set "Auth:Operators:0:Username" "cajero1" --project backend/src/Pos.Api
+dotnet user-secrets set "Auth:Operators:0:Password" "<contraseña>" --project backend/src/Pos.Api
+```
+
 Variables disponibles (`appsettings.json` o variables de entorno con `__`):
 
 | Clave | Por defecto | Descripción |
@@ -69,7 +78,10 @@ dotnet run --project backend/src/Pos.Api --launch-profile http
 |---|---|---|
 | GET | `/api/products?search=&limit=` | Implementado (RF-01, RF-02) |
 | GET | `/api/pos/sessions/active` | Implementado |
-| POST | `/api/auth/login`, `/api/sales`; GET `/api/sales`, `/api/sales/{id}` | Semanas 2–3 |
+| POST | `/api/auth/login` | Implementado (semana 2): devuelve un JWT; el resto de endpoints lo exige |
+| GET | `/api/discounts` | Implementado (semana 2, RF-06 a RF-08): políticas de descuento autorizadas |
+| POST | `/api/sales/preview` | Implementado (semana 2, RF-03 a RF-08): total provisional con precios de Odoo y descuento |
+| POST | `/api/sales`; GET `/api/sales`, `/api/sales/{id}` | Semana 3 |
 
 ## 4. Pruebas
 
@@ -93,6 +105,23 @@ ODOO_API_KEY="<api-key>" bash scripts/prueba-temprana-venta.sh
 
 Resultado de la semana 1: 21 pruebas unitarias y 4 de integración superadas; venta `Caja Principal - 000001`
 registrada en estado `paid` por 7,76 USD y verificada en Odoo.
+
+## 5. Frontend (React, semana 2)
+
+Con la API en ejecución (perfil `http`, puerto 5038):
+
+```bash
+cd frontend
+npm install
+npm run dev      # http://localhost:5173 (origen permitido por CORS)
+npm test         # pruebas del dominio, casos de uso y adaptador HTTP
+```
+
+Si la API usa otro puerto, copie `frontend/.env.example` a `frontend/.env` y ajuste `VITE_API_URL`.
+
+El frontend sigue Clean Architecture: `src/domain` (carrito), `src/application` (casos de uso con puertos `api` y `session`),
+`src/infrastructure` (adaptadores `fetch` y `sessionStorage`) y `src/ui` (componentes React). Las tres primeras carpetas no
+importan React ni `fetch`, por lo que se prueban sin navegador (RNF-02).
 
 ## Solución de problemas
 

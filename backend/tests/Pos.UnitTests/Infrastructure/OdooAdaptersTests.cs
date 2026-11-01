@@ -43,11 +43,12 @@ public sealed class OdooAdaptersTests
             });
     }
 
-    [Fact]
-    public void Domain_without_term_only_filters_sellable_pos_products()
+        [Fact]
+    public void Domain_without_term_only_filters_sellable_pos_products_and_excludes_service_fee()
     {
         var domain = OdooProductCatalog.BuildDomain(null);
-        Assert.Equal(2, domain.Length);
+        Assert.Equal(3, domain.Length);
+        Assert.Contains(domain, condition => condition is object[] { Length: 3 } c && c[0] as string == "default_code" && c[1] as string == "!=" && c[2] as string == "FEE");
     }
 
     [Fact]
