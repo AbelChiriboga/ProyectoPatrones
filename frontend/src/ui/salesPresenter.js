@@ -4,6 +4,8 @@ import { parseHistorySearch } from '../application/historyQuery.js';
 export const saleKey = sale => JSON.stringify(sale);
 export function createSalesPresenter(useCases, onConfirmed = () => {}) {
   let sale = null, activeView = null, historyGeneration = 0, detailGeneration = 0;
+  let historyTimer;
+  const cancelHistory = () => { clearTimeout(historyTimer); historyGeneration += 1; };
   let lastHistoryRequest = { cursor: 0, query: '', cursors: [0], index: 0 };
   let state = { key: '', quote: null, method: '', reviewAccepted: false, busy: '', error: '', message: '', notice: '', outcome: 'idle',
     pending: useCases.pendingSale(), history: [], historyLoaded: false, historyStatus: 'idle', historyError: '', historyTerm: '', historySearchError: '', historyQuery: '', historyCursors: [0], historyIndex: 0, historyHasMore: false, historyNextBeforeId: null, detail: null, detailOpen: false, detailId: null, detailStatus: 'idle', detailError: '', resultSale: null };
@@ -41,6 +43,7 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
     patch({ detailOpen: false, detail: null, detailId: null, detailStatus: 'idle', detailError: '' });
   }
   async function loadHistory(request) {
+    clearTimeout(historyTimer);
     lastHistoryRequest = request;
     const generation = ++historyGeneration;
     closeDetail();
@@ -90,15 +93,27 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
       });
     },
     reconcile: () => run('Consultando operación…', async () => { patch({ detail: null, resultSale: null }); result(await useCases.reconcileSale()); }),
+    dispose() { cancelHistory(); detailGeneration += 1; activeView = null; },
     editHistorySearch(value) {
-      try { parseHistorySearch(value); patch({ historyTerm: value, historySearchError: '' }); }
-      catch (error) { patch({ historySearchError: error.message }); }
+      let query;
+      try { query = parseHistorySearch(value); }
+      catch (error) {
+        cancelHistory();
+        patch({ historySearchError: error.message, historyStatus: state.historyLoaded ? 'ready' : 'idle' });
+        return;
+      }
+      if (!state.historySearchError && query === parseHistorySearch(state.historyTerm) && ['ready', 'loading'].includes(state.historyStatus)) {
+        patch({ historyTerm: value }); return;
+      }
+      cancelHistory();
+      patch({ historyTerm: value, historySearchError: '', historyStatus: 'loading', historyError: '', historyCursors: [0], historyIndex: 0, historyHasMore: false });
+      historyTimer = setTimeout(() => presenter.searchHistory(), 300);
     },
     searchHistory() {
       if (state.historySearchError) return Promise.resolve(false);
       return loadHistory({ cursor: 0, query: parseHistorySearch(state.historyTerm), cursors: [0], index: 0 });
     },
-    history(before = 0) { return loadHistory({ cursor: before, query: state.historyQuery, cursors: [before], index: 0 }); },
+    history(before = 0) { return loadHistory({ cursor: before, query: parseHistorySearch(state.historyTerm), cursors: [before], index: 0 }); },
     retryHistory: () => loadHistory(lastHistoryRequest),
     nextHistory() {
       if (state.historyStatus !== 'ready' || !state.historyHasMore) return Promise.resolve(false);
@@ -129,7 +144,7 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
     enterView(view) {
       if (view === activeView) return Promise.resolve(false);
       activeView = view;
-      if (view !== 'historial' && state.detailOpen) closeDetail();
+      if (view !== 'historial') { cancelHistory(); if (state.detailOpen) closeDetail(); }
       if (view === 'historial') return presenter.history();
       if (view === 'cobro' && !state.quote && !state.pending) return presenter.quote();
       return Promise.resolve(false);

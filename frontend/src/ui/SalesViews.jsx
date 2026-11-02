@@ -45,30 +45,30 @@ export function SaleDetailDialog({ state, onClose, onRetry }) {
     <footer className="dialog-actions"><button type="button" className="secondary" data-dialog-initial-focus onClick={onClose}>Cerrar detalle</button></footer>
   </SafeDialog>;
 }
-export function HistoryView({ state, onRetry, onRefresh, onDetail, onNext, onPrevious, onSearchTerm, onSearch, onCloseDetail, onRetryDetail }) {
+export function HistoryView({ state, onRetry, onRefresh, onDetail, onNext, onPrevious, onSearchTerm, onCloseDetail, onRetryDetail }) {
   const loading = ['idle', 'loading'].includes(state.historyStatus);
   return <>
     <section className="card history-panel" aria-label="Órdenes registradas">
-      <form className="history-search" onSubmit={event => { event.preventDefault(); onSearch(); }}>
+      <div className="history-search">
         <div><label htmlFor="history-search">Buscar órdenes</label>
           <input id="history-search" type="search" placeholder="Referencia de la orden o referencia POS" value={state.historyTerm ?? ''}
             aria-invalid={!!state.historySearchError} aria-describedby={`history-search-help${state.historySearchError ? ' history-search-error' : ''}`}
             onChange={event => onSearchTerm(event.target.value)} />
-          <p id="history-search-help" className="hint">Busca en Odoo, no solo en esta página. Hasta 100 caracteres.</p>
+          <p id="history-search-help" className="hint">Resultados automáticos al escribir. Hasta 100 caracteres de la referencia.</p>
           {state.historySearchError && <p id="history-search-error" role="alert" className="error">{state.historySearchError}</p>}
-        </div><button type="submit" disabled={!!state.historySearchError}>Buscar</button>
-      </form>
+        </div>
+      </div>
       <div className="panel-heading"><p className="hint">{state.historyQuery ? `Resultados para «${state.historyQuery}»` : 'Ventas del punto de venta autorizado'} · Registro más reciente primero</p>
         {state.historyStatus === 'ready' && <button className="secondary" onClick={onRefresh}>Actualizar órdenes</button>}</div>
       {loading && <p className="empty-state" role="status">Cargando órdenes…</p>}
       {state.historyStatus === 'error' && <div className="notice notice-error" role="alert"><strong>No se pudo cargar el historial</strong><p>{state.historyError}</p><button className="secondary" onClick={onRetry}>Reintentar historial</button></div>}
-      {state.historyStatus === 'ready' && <>
-        {!state.history.length ? <div className="empty-state"><strong>No hay ventas en esta página</strong><p>{state.historyQuery ? 'No se encontraron órdenes para la referencia consultada.' : 'Las órdenes aparecerán aquí cuando estén registradas en Odoo.'}</p></div>
-          : <div className="history-table-wrap"><table className="history-table"><caption className="sr-only">Ventas reales de Odoo, página {(state.historyIndex ?? 0) + 1}</caption>
+      {(state.historyStatus === 'ready' || state.historyLoaded) && <>
+        {!state.history.length ? (state.historyStatus === 'ready' && <div className="empty-state"><strong>No hay ventas en esta página</strong><p>{state.historyQuery ? 'No se encontraron órdenes para la referencia consultada.' : 'Las órdenes aparecerán aquí cuando estén registradas en Odoo.'}</p></div>)
+          : <div className="history-table-wrap" aria-busy={loading}><table className="history-table"><caption className="sr-only">Ventas reales de Odoo, página {(state.historyIndex ?? 0) + 1}</caption>
             <thead><tr><th scope="col">Referencia</th><th scope="col">Fecha (UTC)</th><th scope="col">Total</th><th scope="col">Estado</th><th scope="col">Detalle</th></tr></thead>
             <tbody>{state.history.map(sale => <tr key={sale.id}><th scope="row">{sale.reference}</th><td>{displayDateUtc(sale.dateUtc)}</td>
               <td className="price">{displayAmount(sale.total, sale.currency)}</td><td><OrderState value={sale.state} /></td>
-              <td><button type="button" className="secondary" onClick={() => onDetail(sale.id)}>Ver detalle de {sale.reference}</button></td></tr>)}</tbody>
+              <td><button type="button" className="secondary" disabled={loading} onClick={() => onDetail(sale.id)}>Ver detalle de {sale.reference}</button></td></tr>)}</tbody>
           </table></div>}
       </>}
       <nav className="history-pagination" aria-label="Páginas del historial">

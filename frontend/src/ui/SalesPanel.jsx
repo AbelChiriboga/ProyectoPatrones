@@ -17,6 +17,7 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
   const confirmed = useRef(onConfirmed);
   confirmed.current = onConfirmed;
   const presenter = useMemo(() => createSalesPresenter(useCases, () => confirmed.current()), [useCases]);
+  useEffect(() => () => presenter.dispose(), [presenter]);
   const state = useSyncExternalStore(presenter.subscribe, presenter.read, presenter.read);
   const sale = { lines: cart.toRequestLines(), discountCode };
   const key = saleKey(sale);
@@ -63,7 +64,7 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
       {state.resultSale && <div className="card"><VerifiedDetail sale={state.resultSale} /></div>}
     </>}
     {view === 'historial' && <HistoryView state={state} onRetry={presenter.retryHistory} onRefresh={() => presenter.history()} onDetail={presenter.detail}
-      onNext={presenter.nextHistory} onPrevious={presenter.previousHistory} onSearchTerm={presenter.editHistorySearch} onSearch={presenter.searchHistory}
+      onNext={presenter.nextHistory} onPrevious={presenter.previousHistory} onSearchTerm={presenter.editHistorySearch}
       onCloseDetail={presenter.closeDetail} onRetryDetail={() => presenter.detail(state.detailId)} />}
     {view === 'operaciones' && <section className="card pending-panel" aria-label="Consulta de resultados inciertos">
       <p className="eyebrow">Consulta y conciliación</p>

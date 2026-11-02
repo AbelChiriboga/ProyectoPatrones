@@ -29,11 +29,11 @@ describe('remote history, search and cursor navigation',()=>{
     x.model.editHistorySearch(' Caja buscada ');await x.model.searchHistory();expect(x.cases.salesHistoryPage).toHaveBeenLastCalledWith({search:'Caja buscada',beforeId:0,limit:20});expect(x.model.read().historyCursors).toEqual([0]);expect(x.model.read().historyQuery).toBe('Caja buscada');
     await x.model.nextHistory();expect(x.cases.salesHistoryPage).toHaveBeenCalledTimes(4);
   });
-  it('keeps applied query/cursor for pagination and retry, not an unsubmitted or invalid search',async()=>{
+  it('keeps applied query/cursor for pagination and retry, not an invalid search',async()=>{
     const x=setup({salesHistoryPage:vi.fn().mockResolvedValueOnce(page([item(50)],true)).mockRejectedValueOnce(new Error('network')).mockResolvedValue(page([item(49)]))});
-    x.model.editHistorySearch('Caja');await x.model.searchHistory();x.model.editHistorySearch('other draft');await x.model.nextHistory();expect(x.model.read().historyStatus).toBe('error');
+    x.model.editHistorySearch('Caja');await x.model.searchHistory();await x.model.nextHistory();expect(x.model.read().historyStatus).toBe('error');
     await x.model.retryHistory();expect(x.cases.salesHistoryPage).toHaveBeenLastCalledWith({search:'Caja',beforeId:50,limit:20});
-    x.model.editHistorySearch('bad\n');expect(x.model.read().historyTerm).toBe('other draft');await x.model.searchHistory();expect(x.cases.salesHistoryPage).toHaveBeenCalledTimes(3);
+    x.model.editHistorySearch('bad\n');expect(x.model.read().historyTerm).toBe('Caja');await x.model.searchHistory();expect(x.cases.salesHistoryPage).toHaveBeenCalledTimes(3);
     x.model.editHistorySearch('fixed');expect(x.model.read().historySearchError).toBe('');
   });
   it('ignores stale search pages and resets paging for a new query',async()=>{
