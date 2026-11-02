@@ -128,3 +128,38 @@ importan React ni `fetch`, por lo que se prueban sin navegador (RNF-02).
 **`The ApiKey field is required` / `Falta Odoo:ApiKey` al iniciar la API.** Los user-secrets solo se cargan cuando
 `ASPNETCORE_ENVIRONMENT=Development`. En Visual Studio seleccione el perfil **http** o **https** junto al botón
 de ejecución (no ejecute el `.exe` directamente). Fuera de Development, defina la variable de entorno `Odoo__ApiKey`.
+
+
+## Semana 3 — ventas, efectivo e historial
+
+Implementación en rama local `semana3-ventas`. La evidencia actual está en `docs/evidencias/semana3-p09.json`; contrato final y límites en `docs/sdd/semana3/especificacion.md`, sección 10.
+
+Preparación segura de una instancia nueva y aislada (requiere Python 3, Docker y `infra/.env` con contraseña propia):
+
+```powershell
+python scripts/prepare-week3.py
+```
+
+Guarda credenciales aleatorias exclusivamente en `infra/backend.env.local`, ignorado. No imprime claves ni cambia una instancia ajena. Si ya existe ese archivo, no reinicializa ni rota claves. Para volver a iniciar los contenedores preparados:
+
+```powershell
+docker compose -p patrones-semana3 --env-file infra/.env -f infra/docker-compose.yml -f infra/compose.env.local up -d
+python scripts/run-week3.py
+```
+
+El backend escucha en localhost:5038. En otra terminal, desde `frontend`, ejecutar `npm ci` y `npm run dev` (localhost:5173). Usuario y contraseña de desarrollo se consultan localmente en el archivo ignorado; nunca copiarlos a Git ni a capturas. No usar el script antiguo de inicialización para esta instancia preparada.
+
+Flujo: login → carrito/descuento → consultar total con impuestos → elegir efectivo configurado → confirmar efectivo exacto → resultado real. Ante incertidumbre se conserva UUID y se consulta la operación; no repetir el cobro. Historial y detalle leen Odoo, limitados al POS configurado en servidor.
+
+Verificación reproducible sin venta nueva:
+
+```powershell
+dotnet build backend/PosOdoo.slnx
+python scripts/verify-week3.py
+```
+
+El verificador carga las credenciales locales, ejecuta tests .NET contra Odoo y verifica cotización por la API. `--write` solicita P09: si ya hay evidencia, concilia y verifica la misma venta sin reenviar a Odoo; si no existe, registra una intención nueva (solo ejecutar en desarrollo autorizado). No borrar evidencia ni diario para volver a probar. Frontend: `npm test` y `npm run build`.
+
+API nueva: POST `/api/sales/quote`, POST `/api/sales`, GET `/api/sales`, GET `/api/sales/{id}` y GET `/api/sales/operations/{uuid}`; todas con JWT. Preview conserva su contrato. Impuestos soportados: un porcentaje excluido por línea, redondeo global/por línea, centavos, sin posiciones fiscales/listas de precios/redondeo de efectivo. Las configuraciones adicionales se rechazan explícitamente. Definir `Sales__JournalPath` a una ruta absoluta persistente al desplegar; conservar y respaldar el diario. Esta implementación no garantiza exclusión distribuida entre varios hosts.
+
+Resultado medido: 76 unitarias .NET, 4 integraciones reales y 33 pruebas React aprobadas; builds correctos. P09: una venta pagada de 2,76 USD y un solo registro por UUID tras repetición. La interfaz no se ha validado visualmente en navegador.

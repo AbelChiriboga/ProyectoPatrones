@@ -1,0 +1,31 @@
+# Seguimiento SDD semana 3
+- Fecha: 2026-11-01, America/Guayaquil.
+- Fase: SDD-03.1 implementada y verificada por API; navegador no probado visualmente.
+- Rama: semana3-ventas; base: 9c84c3e3230d58ff74cbf241a5d8d94a187ddca7.
+- Odoo 20.0-20261015 en proyecto Docker aislado patrones-semana3.
+- Host 127.0.0.1:8069; base pos_db; configuración 1; sesión abierta 1.
+- Admin y gestor de bases aleatorios; API key/JWT/operador en archivos locales ignorados.
+- scripts/prepare-week3.py: inicialización segura sin HTTP y puerto host loopback.
+- Contrato sync_from_ui(orders) inspeccionado en código de imagen instalada.
+- `dotnet build backend/PosOdoo.slnx --no-restore`: 0 errores, 0 advertencias.
+- `python scripts/verify-week3.py --write`: carga entorno y ejecuta suite .NET + P09.
+- Suite .NET: 76 unitarias y 4 integraciones reales aprobadas; 0 fallidas/omitidas.
+- `npm test` en frontend: 33 aprobadas en 4 archivos; 0 fallidas.
+- `npm run build` en frontend: correcto.
+- P09: orden 2, Caja Principal - 000001, paid, efectivo 2,76 USD, IVA 0,36.
+- UUID P09: 0f21ba7c-8be1-4ed2-a053-4cf4132e4064; conteo tras repetición = 1.
+- Evidencia: docs/evidencias/semana3-p09.json (orden, líneas, pago e historial/detalle).
+- Primer intento rechazado 422 por redondeo global; conteo 0, nunca reenviado.
+- Evidencia rechazada preservada: docs/evidencias/semana3-p09-rejected.json.
+- Contratos finales y límites documentados en especificacion.md sección 10.
+- Idempotencia: claim exclusivo durable, SHA-256/operador, resultado atómico.
+- Timeout/reinicio: consultar UUID, nunca reenviar comandos ni marcar éxito sin pago.
+- Decisiones: Adapter/puertos; diario en filesystem sin paquetes; Strategy reutilizado.
+- Impuestos simples excluidos, moneda de centavos, efectivo exacto; configuración compleja rechazada.
+- UI conectada: cotización, efectivo, confirmación, operación pendiente, historial y detalle.
+- Riesgos: diario de un host debe conservarse; claims incompletos requieren revisión manual.
+- No probado: interfaz en navegador y venta real adicional con descuentos.
+- Bloqueos externos actuales: ninguno para el flujo simple validado.
+- main intacto; sin commit/push/merge; contenedores ajenos preservados.
+- Próximo: revisión y demostración visual; semana 4 refactorización y defensa.
+- SDD-03.2: Vite 5173 apuntaba a otra copia; reiniciado desde este repo. Texto obsoleto corregido; 35 React/76 .NET aprobadas, build y HTTP de semana 3 correctos. Sin ventas nuevas; validación visual a cargo del usuario. Política permanente en AGENTS.md.
