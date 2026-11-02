@@ -41,6 +41,12 @@ export function createHttpPosApi({ baseUrl, getToken, onUnauthorized, fetchFn = 
   }
 
   return {
+    activeSession: () => request('/api/pos/sessions/active'),
+    quoteSale: (sale) => request('/api/sales/quote', { method: 'POST', body: sale }),
+    registerSale: (sale) => request('/api/sales', { method: 'POST', body: sale }),
+    saleOperation: (id) => request(`/api/sales/operations/${encodeURIComponent(id)}`),
+    salesHistory: (beforeId = 0) => request(`/api/sales?beforeId=${beforeId}&limit=20`),
+    saleDetail: (id) => request(`/api/sales/${encodeURIComponent(id)}`),
     login: (credentials) => request('/api/auth/login', { method: 'POST', body: credentials, authenticated: false }),
     searchProducts: (term) => request(`/api/products?search=${encodeURIComponent(term)}`),
     listDiscounts: () => request('/api/discounts'),

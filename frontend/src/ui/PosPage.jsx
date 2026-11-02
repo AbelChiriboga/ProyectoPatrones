@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Cart, lineSubtotal } from '../domain/cart.js';
+import SalesPanel from './SalesPanel.jsx';
 
 const money = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 
@@ -13,6 +14,7 @@ function useDebounce(value, delay) {
 }
 
 export default function PosPage({ useCases, username, onLogout }) {
+  const [checkoutLocked, setCheckoutLocked] = useState(false);
   const [term, setTerm] = useState('');
   const debouncedTerm = useDebounce(term, 300);
   const [products, setProducts] = useState([]);
@@ -79,6 +81,7 @@ export default function PosPage({ useCases, username, onLogout }) {
         <button className="link" onClick={onLogout}>Cerrar sesión</button>
       </header>
 
+      <fieldset disabled={checkoutLocked} style={{ display: 'contents' }}>
       <section className="card">
         <h2>Catálogo</h2>
         <input
@@ -154,10 +157,12 @@ export default function PosPage({ useCases, username, onLogout }) {
           <dd className="total">{preview ? money.format(preview.total) : '—'}</dd>
         </dl>
         <p className="muted small">
-          {previewLoading ? 'Calculando con Odoo…' : 'Sin IVA: Odoo calcula el impuesto y el total final al registrar la venta (semana 3).'}
+          {previewLoading ? 'Calculando con Odoo…' : 'Total provisional sin impuestos. Consulte el total con impuestos en Cobro e historial antes de confirmar.'}
         </p>
         {previewError && <p className="error" role="alert">{previewError}</p>}
       </section>
+      </fieldset>
+      <SalesPanel useCases={useCases} cart={cart} discountCode={discountCode} onLockChange={setCheckoutLocked} onConfirmed={() => setCart(Cart.empty())} />
     </div>
   );
 }
