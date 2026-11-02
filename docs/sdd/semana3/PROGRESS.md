@@ -1,6 +1,6 @@
 # Seguimiento SDD semana 3
-- Fecha: 2026-11-01, America/Guayaquil.
-- Fase: SDD-03.4, calidad y fallos verificados por terminal; validación visual a cargo del usuario.
+- Fecha: 2026-11-02, America/Guayaquil.
+- Fase: SDD-03.4-B, calidad y fallos verificados por terminal; validación visual a cargo del usuario.
 - Rama: semana3-ventas; base: 9c84c3e3230d58ff74cbf241a5d8d94a187ddca7.
 - Odoo 20.0-20261015 en proyecto Docker aislado patrones-semana3.
 - Host 127.0.0.1:8069; base pos_db; configuración 1; sesión abierta 1.
@@ -10,7 +10,7 @@
 - `dotnet build backend/PosOdoo.slnx --no-restore`: 0 errores, 0 advertencias.
 - `python scripts/verify-week3.py --write`: carga entorno y ejecuta suite .NET + P09.
 - Suite .NET: 76 unitarias y 4 integraciones reales aprobadas; 0 fallidas/omitidas.
-- `npm test` en frontend: 51 aprobadas en 6 archivos; 0 fallidas.
+- `npm test` en frontend: 74 aprobadas en 7 archivos; 0 fallidas.
 - `npm run build` en frontend: correcto.
 - P09: orden 2, Caja Principal - 000001, paid, efectivo 2,76 USD, IVA 0,36.
 - UUID P09: 0f21ba7c-8be1-4ed2-a053-4cf4132e4064; conteo tras repetición = 1.
@@ -30,4 +30,6 @@
 - Próximo: revisión y demostración visual; semana 4 refactorización y defensa.
 - SDD-03.2: Vite 5173 apuntaba a otra copia; reiniciado desde este repo. Texto obsoleto corregido; 35 React/76 .NET aprobadas, build y HTTP de semana 3 correctos. Sin ventas nuevas; validación visual a cargo del usuario. Política permanente en AGENTS.md.
 - SDD-03.4: cantidades transitorias, quote vigente, revisión de efectivo, fallos/conciliación, historial y navegación; matriz código/prueba/manual en especificacion.md.
-- Regresión actual: React 51, .NET 76 + 4 integraciones de lectura y lanzador 6 aprobadas; 0 fallidas/omitidas. Builds correctos, .NET en artefactos temporales por DLL activos. Sin ventas nuevas.
+- Regresión actual: React 74, .NET 76 + 4 integraciones de lectura y lanzador 6 aprobadas; 0 fallidas/omitidas. Builds correctos, .NET en artefactos temporales por DLL activos. Sin ventas nuevas.
+- SDD-03.4-B: DEF-01 gramática/Enter/blur/entero seguro; DEF-02/03 vistas excluyentes con carrito preservado y ticket. 15 regresiones fallaban antes; ahora pasan; 23 casos nuevos.
+- Manual pendiente: teclado/pegado, navegación atrás/retorno, foco y ticket; no confirmar ventas. Sin cambios de Odoo/secretos ni dependencias nuevas; detalle histórico separado del resultado de cobro.
