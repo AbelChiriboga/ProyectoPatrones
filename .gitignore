@@ -16,3 +16,6 @@ dist/
 
 # Office
 ~$*
+
+# Durable operation journal (retain across restarts)
+.pos-operations/

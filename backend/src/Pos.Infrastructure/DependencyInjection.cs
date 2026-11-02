@@ -30,6 +30,9 @@ public static class DependencyInjection
 
         services.AddScoped<IProductCatalog, OdooProductCatalog>();
         services.AddScoped<IPosSessionGateway, OdooPosSessionGateway>();
+        services.AddScoped<Pos.Application.Sales.ISaleGateway, OdooSaleGateway>();
+        services.AddSingleton<Pos.Application.Sales.ISaleOperationStore>(_ => new Pos.Infrastructure.Sales.FileSaleOperationStore(
+            configuration["Sales:JournalPath"] ?? Path.Combine(AppContext.BaseDirectory, ".pos-operations")));
         return services;
     }
 }
