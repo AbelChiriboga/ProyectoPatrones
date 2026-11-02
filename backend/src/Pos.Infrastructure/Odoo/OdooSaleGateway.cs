@@ -7,7 +7,7 @@ using Pos.Domain.Common;
 namespace Pos.Infrastructure.Odoo;
 
 /// <summary>Only the explicitly configured POS is accessible. Unsupported fiscal settings fail closed.</summary>
-public sealed class OdooSaleGateway(OdooJson2Client client, IOptions<OdooOptions> options) : ISaleGateway
+public sealed partial class OdooSaleGateway(OdooJson2Client client, IOptions<OdooOptions> options) : ISaleGateway
 {
     private int ConfigId => options.Value.PosConfigId ?? throw new ValidationException("sales.scope_required", "Configure Odoo:PosConfigId para habilitar ventas.");
     private async Task<JsonElement[]> Read(string model, object[] domain, string[] fields, CancellationToken ct, int limit = 100, string order = "id desc") {

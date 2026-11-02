@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<GetActiveSessionUseCase>();
         services.AddScoped<PreviewSaleUseCase>();
         services.AddScoped<SaleWorkflow>();
+        services.AddScoped<SearchSalesHistoryUseCase>();
         services.AddScoped<ListDiscountsUseCase>();
         services.AddScoped<LoginUseCase>();
         return services;
