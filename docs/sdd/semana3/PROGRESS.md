@@ -1,31 +1,32 @@
 # Seguimiento SDD semana 3
 - Fecha: 2026-11-02, America/Guayaquil.
-- Fase: SDD-03.4-C implementada; aceptación visual A pendiente del usuario.
+- Fase: SDD-03.5 implementada y verificada por terminal; aceptación manual pendiente.
 - Rama: semana3-ventas; base: 9c84c3e3230d58ff74cbf241a5d8d94a187ddca7.
-- Baseline antes de C: f16fc72; ocho commits locales anteriores preservados.
-- Fuente A: HTML aportado, template extraído estáticamente sin ejecutar scripts.
-- UI: fondo claro, paneles blancos/radio 14px, azul #0b5cab, controles 44px y dos columnas.
-- Navegación: 1 Venta → 2 Cobro; Historial/Pendientes independientes; carrito preservado.
-- DEF-04: consulta Unicode imprimible hasta 100 UTF-16, sin controles/solo símbolos.
-- Búsqueda rechazada conserva texto válido; no llama HTTP con entrada inválida.
-- DEF-05: sin latch de rechazo; cantidad restaurada informa sin marcar inválido el valor correcto.
-- Cantidad: draft separado, Enter/blur/IME, +/- según dominio y stock; sin máximo comercial nuevo.
-- DEF-06: historial automático con carga/vacío/error/retry y detalle real; sin Ver historial.
-- DEF-07: ticket/revisión API y efectivo exacto; checkbox deliberado antes de confirmar.
-- Cotización/revisión invalidadas por producto/cantidad/descuento; doble envío bloqueado.
-- Incertidumbre conserva identidad durable y exige consulta; sin reenvío automático.
-- Regresiones previas: se mantienen, adaptadas al nuevo paso y revisión explícita.
-- `guided.test.jsx` antes: 6 fallidas; después todas aprobadas (DEF-07 estructural, no visual).
-- `npm --prefix frontend test`: 108 aprobadas en 9 archivos; 0 fallidas/omitidas.
+- Baseline: f31fba0; diez commits locales anteriores preservados, sin reescribir fechas.
+- Diseño A y entradas: aceptación previa reportada por el usuario, sin verificación visual de Codex.
+- Causas: navegación poco visible, historial legacy con N+1, detalle inline y Quitar inmediato.
+- RF-04/15: confirmación de quitar en modal reutilizable; negocio sigue en Cart/casos de uso.
+- Cancelar preserva identidad de carrito/quote; confirmar quita solo el seleccionado e invalida quote.
+- Bloqueo síncrono de confirmación duplicada/reentrante y de edición durante operación crítica.
+- RF-13/14: GET /api/sales/history aditivo, búsqueda remota y cursores; legacy intacto.
+- Una consulta pos.order/search_read: ámbito POS, proyección cabeceras, limit+1, sin N+1.
+- Tabla referencia/fecha UTC/total/estado; automático, búsqueda, Anterior/Siguiente y retry.
+- Detalle real en modal: carga/error/retry, cierre explícito y descarte de respuestas tardías.
+- Dialog compartido: foco seguro, Tab/Shift+Tab, restauración y scroll interno; sin cierre exterior.
+- Escape solo cierra/cancela; controles y ARIA verificados con SSR/puertos de foco, sin navegador.
+- Navegación Venta/Historial/Pendientes visible/activa; 1 Venta → 2 Cobro y carrito conservados.
+- Reglas de cobro, impuestos, descuentos e idempotencia sin cambios; sin ventas nuevas.
+- `npm --prefix frontend test`: 131 aprobadas en 10 archivos; 0 fallidas/omitidas.
 - `npm --prefix frontend run build`: correcto.
 - `dotnet build backend/PosOdoo.slnx --artifacts-path <temporal>`: 0 errores/advertencias.
 - `dotnet test backend/PosOdoo.slnx --artifacts-path <misma temporal> --no-build --no-restore`:
-- Resultado .NET: 76 unitarias + 4 integraciones Odoo de solo lectura aprobadas; 0 fallidas/omitidas.
+- Resultado .NET: 89 unitarias + 5 integraciones Odoo de solo lectura aprobadas; 0 fallidas/omitidas.
 - `python -B scripts/test_run_week3.py`: 6 aprobadas; 0 fallidas/omitidas.
-- Vite PosPage HTTP 200 y paso #cobro presente; API5038/Vite5173 activos sin reinicio.
-- Backend, Odoo, secretos y AGENTS.md sin cambios; no nuevas ventas ni dependencias.
+- HTTP real API5038: login/historial/búsqueda/fecha/cursor/detalle/legacy 200; inválidos 400; sin JWT 401.
+- API5038 reiniciada solo en este repo para cargar ruta nueva; Vite5173 sirve módulo actualizado (200).
+- Secretos, datos Odoo y AGENTS.md sin cambios; sin dependencias nuevas ni POST /api/sales.
 - P09 histórico: docs/evidencias/semana3-p09.json; no repetido en esta fase.
-- Matriz y guía manual de ocho casos en especificacion.md sección SDD-03.4-C.
+- Matriz, decisiones y guía manual segura: especificacion.md sección SDD-03.5.
 - Excluidos: pagos nuevos/vuelto, clientes, inventario, facturas, reportes y conexión ficticia.
 - Sin navegador/GUI ni afirmación de validación visual. Main intacto; sin push/merge.
-- Riesgos: aceptación visual/teclado pendiente; diario local de un host conserva límites previos.
+- Pendientes: foco/scroll nativos, teclado, anchuras y diseño manual; diario local conserva límites previos.
