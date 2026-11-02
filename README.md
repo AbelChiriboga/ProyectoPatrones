@@ -1,165 +1,232 @@
-# POS integrado con Odoo 20 Community — Proyecto integrador de Patrones de Software
+# POS integrado con Odoo 20 Community — Semana 3
 
-Estado: **Semana 2** (carrito, descuentos con Strategy, login del operador y frontend React) sobre la **semana 1**
-completada (requisitos, investigación inicial, diseño arquitectónico, instalación de Odoo, primera consulta integrada y
-prueba temprana de registro de venta).
+Rama de entrega: `semana3-ventas`. Implementa ventas, efectivo exacto, conciliación, historial con búsqueda dinámica/paginación en servidor y detalle, conservando catálogo, carrito y descuentos. El frontend obtiene los datos por la API .NET; nunca recibe la API key de Odoo.
 
-```
-Frontend React        →  API REST ASP.NET Core (.NET 10)  →  Odoo 20 Community (JSON-2)  →  PostgreSQL
+```text
+React → ASP.NET Core (.NET 10) → Odoo 20 Community (JSON-2) → PostgreSQL
 ```
 
-## Estructura
+Alcance: efectivo por el total verificado, sin tarjetas, transferencias ni vuelto. No incluye inventario integral, clientes, facturación o reportes nuevos. La publicación no ejecuta por sí misma ninguna venta.
 
-| Carpeta | Contenido |
-|---|---|
-| `backend/src/Pos.Domain` | Entidades y reglas (`Product`, `PosSession`). Sin dependencias. |
-| `backend/src/Pos.Application` | Casos de uso y puertos (`IProductCatalog`, `IPosSessionGateway`). Depende solo de Domain. |
-| `backend/src/Pos.Infrastructure` | Adaptadores de Odoo (`OdooJson2Client`, `OdooProductCatalog`, `OdooPosSessionGateway`). |
-| `backend/src/Pos.Api` | Controladores REST, manejo uniforme de errores (ProblemDetails), composición. |
-| `backend/tests` | Pruebas unitarias (dobles de prueba) y de integración contra Odoo real. |
-| `infra` | `docker-compose.yml` de Odoo 20 + PostgreSQL y script de configuración del POS. |
-| `scripts` | Inicialización de Odoo y prueba temprana de venta (P09). |
-| `docs` | Informe de la semana 1 y evidencias de peticiones/respuestas. |
+## 1. Prerrequisitos y carpeta correcta
 
-## Requisitos previos
+- Git; .NET SDK 10; Python 3; Node.js y npm compatibles con el lockfile y Vite del proyecto.
+- Docker Desktop con motor iniciado y Docker Compose con soporte para la etiqueta `!override` usada por el preparador.
+- PowerShell para los comandos de esta guía. Git Bash no es necesario para el arranque actual.
+- Puertos habituales: Odoo 8069, API 5038 y React 5173.
 
-- Docker Desktop
-- .NET SDK 10
-- Git Bash (Windows) o una shell POSIX para los scripts
-
-## 1. Preparar Odoo 20 Community
-
-```bash
-cp infra/.env.example infra/.env
-```
-
-Edite `infra/.env` con una contraseña propia de PostgreSQL y luego ejecute:
-
-```bash
-bash scripts/odoo-init.sh
-```
-
-El script crea la base `pos_db` con `point_of_sale`, el impuesto IVA 15 %, cuatro productos, el método de pago
-**Efectivo**, el punto de venta **Caja Principal**, el usuario de integración `pos_integration` (solo grupo
-*Usuario POS*), abre una sesión y genera una API key válida por 90 días. Copie la línea `APIKEY` mostrada
-(solo se muestra una vez). Odoo queda en http://localhost:8069 (usuario `admin` / `admin`: cámbielo).
-
-## 2. Configurar el backend (sin secretos en el repositorio)
-
-```bash
-dotnet user-secrets set "Odoo:ApiKey" "<api-key>" --project backend/src/Pos.Api
-```
-
-Además, la semana 2 exige una clave para firmar los tokens y al menos un operador (también en user-secrets):
-
-```bash
-dotnet user-secrets set "Jwt:Key" "<texto-aleatorio-de-32-o-mas-caracteres>" --project backend/src/Pos.Api
-dotnet user-secrets set "Auth:Operators:0:Username" "cajero1" --project backend/src/Pos.Api
-dotnet user-secrets set "Auth:Operators:0:Password" "<contraseña>" --project backend/src/Pos.Api
-```
-
-Variables disponibles (`appsettings.json` o variables de entorno con `__`):
-
-| Clave | Por defecto | Descripción |
-|---|---|---|
-| `Odoo:BaseUrl` | `http://localhost:8069` | URL de Odoo |
-| `Odoo:Database` | `pos_db` | Base de datos (cabecera `X-Odoo-Database`) |
-| `Odoo:ApiKey` | — | API key del usuario de integración (obligatoria) |
-| `Odoo:PosConfigId` | `null` | Limita la sesión activa a un punto de venta |
-| `Odoo:TimeoutSeconds` | `15` | Tiempo máximo de espera hacia Odoo |
-
-## 3. Ejecutar la API
-
-```bash
-dotnet run --project backend/src/Pos.Api --launch-profile http
-```
-
-| Método | Ruta | Estado |
-|---|---|---|
-| GET | `/api/products?search=&limit=` | Implementado (RF-01, RF-02) |
-| GET | `/api/pos/sessions/active` | Implementado |
-| POST | `/api/auth/login` | Implementado (semana 2): devuelve un JWT; el resto de endpoints lo exige |
-| GET | `/api/discounts` | Implementado (semana 2, RF-06 a RF-08): políticas de descuento autorizadas |
-| POST | `/api/sales/preview` | Implementado (semana 2, RF-03 a RF-08): total provisional con precios de Odoo y descuento |
-| POST | `/api/sales`; GET `/api/sales`, `/api/sales/{id}` | Semana 3 |
-
-## 4. Pruebas
-
-Unitarias (no requieren Odoo):
-
-```bash
-dotnet test backend/tests/Pos.UnitTests
-```
-
-Integración contra Odoo real (se omiten si `Odoo__ApiKey` no está definida):
-
-```bash
-Odoo__ApiKey="<api-key>" dotnet test backend/tests/Pos.IntegrationTests
-```
-
-Prueba temprana de venta con dos productos y efectivo (P09), que guarda las evidencias en `docs/evidencias`:
-
-```bash
-ODOO_API_KEY="<api-key>" bash scripts/prueba-temprana-venta.sh
-```
-
-Resultado de la semana 1: 21 pruebas unitarias y 4 de integración superadas; venta `Caja Principal - 000001`
-registrada en estado `paid` por 7,76 USD y verificada en Odoo.
-
-## 5. Frontend (React, semana 2)
-
-Con la API en ejecución (perfil `http`, puerto 5038):
-
-```bash
-cd frontend
-npm install
-npm run dev      # http://localhost:5173 (origen permitido por CORS)
-npm test         # pruebas del dominio, casos de uso y adaptador HTTP
-```
-
-Si la API usa otro puerto, copie `frontend/.env.example` a `frontend/.env` y ajuste `VITE_API_URL`.
-
-El frontend sigue Clean Architecture: `src/domain` (carrito), `src/application` (casos de uso con puertos `api` y `session`),
-`src/infrastructure` (adaptadores `fetch` y `sessionStorage`) y `src/ui` (componentes React). Las tres primeras carpetas no
-importan React ni `fetch`, por lo que se prueban sin navegador (RNF-02).
-
-## Solución de problemas
-
-**`The ApiKey field is required` / `Falta Odoo:ApiKey` al iniciar la API.** Los user-secrets solo se cargan cuando
-`ASPNETCORE_ENVIRONMENT=Development`. En Visual Studio seleccione el perfil **http** o **https** junto al botón
-de ejecución (no ejecute el `.exe` directamente). Fuera de Development, defina la variable de entorno `Odoo__ApiKey`.
-
-
-## Semana 3 — ventas, efectivo e historial
-
-Implementación en rama local `semana3-ventas`. La evidencia actual está en `docs/evidencias/semana3-p09.json`; contrato final y límites en `docs/sdd/semana3/especificacion.md`, sección 10.
-
-Preparación segura de una instancia nueva y aislada (requiere Python 3, Docker y `infra/.env` con contraseña propia):
+Todos los comandos parten de la raíz **ProyectoPatrones** de la copia de semana 3. En el equipo de desarrollo:
 
 ```powershell
-python scripts/prepare-week3.py
+Set-Location 'C:\Users\User OGX\Documents\04_Universidad\patrones_software\patrones-software-semana3\ProyectoPatrones'
+git rev-parse --show-toplevel
+git branch --show-current
 ```
 
-Guarda credenciales aleatorias exclusivamente en `infra/backend.env.local`, ignorado. No imprime claves ni cambia una instancia ajena. Si ya existe ese archivo, no reinicializa ni rota claves. Para volver a iniciar los contenedores preparados:
+Otro integrante debe usar la ruta de su clon y comprobar la rama `semana3-ventas`. No usar la copia antigua ubicada fuera de `patrones-software-semana3`.
+
+## 2. Preparación inicial — solo instancia nueva y aislada
+
+Si el entorno ya fue preparado, ir a **Ejecución habitual**. No volver a inicializar Odoo para iniciar la aplicación.
+
+Antes de preparar, ejecutar `docker compose ls` y comprobar que el proyecto fijo `patrones-semana3` no pertenece a otra instalación que deba conservarse. Conservar bases, volúmenes, credenciales y diario existentes; si hay una instalación previa, recuperar su configuración antes de continuar.
+
+En una instancia realmente nueva:
+
+1. Si no existe `infra/.env`, copiar la plantilla. **No sobrescribir un archivo existente**:
+
+   ```powershell
+   if (-not (Test-Path -LiteralPath infra/.env)) {
+       Copy-Item -LiteralPath infra/.env.example -Destination infra/.env
+   }
+   ```
+
+2. Editar localmente `infra/.env`: mantener `POSTGRES_USER` y establecer una contraseña propia para `POSTGRES_PASSWORD`, sin conservar el marcador de la plantilla. El preparador lee líneas simples `CLAVE=valor`; usar valores sin comillas. No publicar el archivo ni compartir su contenido en consola/capturas. No cambiar contraseñas de una base ya inicializada para intentar recuperarla.
+3. Revisar que no hay una base existente pendiente de recuperación y ejecutar:
+
+   ```powershell
+   python -B scripts/prepare-week3.py
+   ```
+
+El preparador usa el proyecto Docker `patrones-semana3`, PostgreSQL 16 y Odoo 20. Crea configuración local, inicia la base, espera disponibilidad e inicializa POS sin HTTP. Configura el entorno de desarrollo y genera claves/contraseñas aleatorias sin imprimirlas. Publica Odoo solo en `127.0.0.1:8069` mediante el override local.
+
+Archivos locales ignorados que deben conservarse y protegerse:
+
+| Archivo | Propósito |
+|---|---|
+| `infra/.env` | Configuración de PostgreSQL para Compose |
+| `infra/odoo.env.local` | Conexión de Odoo a PostgreSQL y clave del gestor de bases |
+| `infra/compose.env.local` | Override de loopback y montaje de configuración |
+| `infra/backend.env.local` | Respaldo de configuración API/operador y contraseña administrativa generada |
+
+Si `backend.env.local` existe, el preparador termina sin inicializar ni rotar claves; eso no comprueba que todos los contenedores/archivos estén completos. Si detecta `pos_db` existente sin ese archivo, rechaza su inicialización: recuperar las credenciales, **no borrar la base ni el archivo para forzar el proceso**. Antes de esa comprobación puede haber escrito configuración local e iniciado PostgreSQL.
+
+Instalar dependencias frontend una vez en el clon preparado, sin servidor Vite activo:
+
+```powershell
+npm --prefix frontend ci
+```
+
+## 3. Ejecución habitual — conservar datos
+
+### Comprobar servicios antes de iniciarlos
+
+```powershell
+docker compose -p patrones-semana3 --env-file infra/.env -f infra/docker-compose.yml -f infra/compose.env.local ps
+Get-NetTCPConnection -LocalPort 5038,5173 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object LocalAddress,LocalPort,OwningProcess
+```
+
+Para un PID ocupado, comprobar su ruta/comando antes de decidir qué hacer (sustituir el número por el observado):
+
+```powershell
+Get-CimInstance Win32_Process -Filter 'ProcessId = 12345' |
+    Select-Object ProcessId,ExecutablePath,CommandLine
+```
+
+Inspeccionar localmente sin compartir líneas que contengan datos sensibles. Si las instancias ya pertenecen a este clon y funcionan, utilizarlas. No ejecutar otro servidor ni detener servicios ajenos. Si un puerto pertenece a otra copia, resolver esa instancia identificada antes de continuar; no matar procesos por nombre indiscriminadamente.
+
+### Odoo y PostgreSQL preparados
+
+Con los cuatro archivos locales conservados y el proyecto correcto identificado:
 
 ```powershell
 docker compose -p patrones-semana3 --env-file infra/.env -f infra/docker-compose.yml -f infra/compose.env.local up -d
-python scripts/run-week3.py
 ```
 
-El backend escucha en localhost:5038. En otra terminal, desde `frontend`, ejecutar `npm ci` y `npm run dev` (localhost:5173). Usuario y contraseña de desarrollo se consultan localmente en el archivo ignorado; nunca copiarlos a Git ni a capturas. No usar el script antiguo de inicialización para esta instancia preparada.
+Este comando inicia/reutiliza los servicios y volúmenes del proyecto; no ejecuta el inicializador POS. Usar siempre el override preparado, pues el compose base por sí solo publica Odoo en todas las interfaces.
 
-Flujo: login → carrito/descuento → consultar total con impuestos → elegir efectivo configurado → confirmar efectivo exacto → resultado real. Ante incertidumbre se conserva UUID y se consulta la operación; no repetir el cobro. Historial y detalle leen Odoo, limitados al POS configurado en servidor.
-
-Verificación reproducible sin venta nueva:
+### Backend — terminal 1, puerto 5038 libre
 
 ```powershell
-dotnet build backend/PosOdoo.slnx
-python scripts/verify-week3.py
+python -B scripts/run-week3.py
 ```
 
-El verificador carga las credenciales locales, ejecuta tests .NET contra Odoo y verifica cotización por la API. `--write` solicita P09: si ya hay evidencia, concilia y verifica la misma venta sin reenviar a Odoo; si no existe, registra una intención nueva (solo ejecutar en desarrollo autorizado). No borrar evidencia ni diario para volver a probar. Frontend: `npm test` y `npm run build`.
+El lanzador ejecuta `dotnet run --no-launch-profile --project backend/src/Pos.Api --urls http://localhost:5038` con la configuración descrita más abajo. El comando `dotnet run` directo no lee `backend.env.local` por sí mismo; no sustituir el lanzador esperando su mismo respaldo local.
 
-API nueva: POST `/api/sales/quote`, POST `/api/sales`, GET `/api/sales`, GET `/api/sales/{id}` y GET `/api/sales/operations/{uuid}`; todas con JWT. Preview conserva su contrato. Impuestos soportados: un porcentaje excluido por línea, redondeo global/por línea, centavos, sin posiciones fiscales/listas de precios/redondeo de efectivo. Las configuraciones adicionales se rechazan explícitamente. Definir `Sales__JournalPath` a una ruta absoluta persistente al desplegar; conservar y respaldar el diario. Esta implementación no garantiza exclusión distribuida entre varios hosts.
+### Frontend — terminal 2, puerto 5173 libre
 
-Resultado medido: 76 unitarias .NET, 4 integraciones reales y 33 pruebas React aprobadas; builds correctos. P09: una venta pagada de 2,76 USD y un solo registro por UUID tras repetición. La interfaz no se ha validado visualmente en navegador.
+```powershell
+npm --prefix frontend run dev -- --host localhost --port 5173 --strictPort
+```
+
+`--strictPort` evita que Vite cambie silenciosamente de puerto. No reinstalar dependencias para arrancar cada vez. Usar `localhost`, que es el origen permitido por CORS.
+
+| Servicio | URL |
+|---|---|
+| POS React | http://localhost:5173 |
+| Historial | http://localhost:5173/#historial |
+| API | http://localhost:5038 |
+| OpenAPI JSON (Development) | http://localhost:5038/openapi/v1.json |
+| Odoo local | http://localhost:8069 |
+
+`App.jsx` usa `VITE_API_URL` si está definida; en otro caso usa `http://localhost:5038`. Esta variable es pública, solo contiene la URL. No poner contraseñas ni claves del backend en variables `VITE_*`. Para el arranque habitual no hace falta crear otro archivo `.env` de frontend.
+
+Flujo: login POS → preparar carrito → pasar a Cobro (cotización automática del servidor) → revisar y confirmar explícitamente el efectivo exacto. «Consultar total con impuestos» permite recotizar/reintentar. Ante resultado incierto, conservar el identificador y consultar Operaciones pendientes; no volver a cobrar. Las comprobaciones manuales sin autorización de venta deben detenerse antes de confirmar.
+
+## 4. Configuración efectiva y autenticación
+
+### Precedencia del lanzador actual, por cada clave
+
+Comprobada en `scripts/run-week3.py` (`build_environment`, `read_user_secrets`) y `Program.cs` (`WebApplication.CreateBuilder`). De mayor a menor, al usar **este lanzador**:
+
+| Orden | Fuente | Comportamiento |
+|---|---|---|
+| 1 | Variables explícitas heredadas por el proceso | No son sustituidas por el archivo local; sobreescriben User Secrets y JSON |
+| 2 | .NET User Secrets, solo en Development | El lanzador reconoce claves planas/anidadas y evita inyectar para ellas el respaldo local |
+| 3 | `infra/backend.env.local` | Solo claves ausentes en fuentes anteriores; se inyectan como variables de entorno del proceso hijo |
+| 4 | `appsettings.{Environment}.json` | Configuración del entorno seleccionado |
+| 5 | `appsettings.json` | Valores base; claves sensibles vacías y operadores vacíos en el repositorio |
+
+Las claves se comparan sin distinguir mayúsculas/minúsculas; `__` en variables equivale a `:` en configuración .NET. La precedencia se resuelve **por clave**, no por archivo completo: usuario y contraseña podrían provenir de fuentes distintas si se configuraron parcialmente.
+
+.NET normalmente sitúa los argumentos de línea de comandos sobre las variables de entorno, después User Secrets y los JSON. Aquí el respaldo tiene prioridad sobre JSON porque el lanzador lo convierte en entorno y protege previamente las claves de User Secrets. El lanzador no reenvía argumentos arbitrarios de Python; pasa únicamente la URL indicada. No hay un proveedor personalizado que cargue automáticamente cualquier `appsettings.*.local.json` o `.env` en ASP.NET Core.
+
+El lanzador establece `ASPNETCORE_ENVIRONMENT=Development` solo si falta. **`DOTNET_ENVIRONMENT` prevalece sobre `ASPNETCORE_ENVIRONMENT`** con WebApplication y es el que el lanzador toma primero. Fuera de Development no se consideran User Secrets: se usan variables explícitas, respaldo local disponible y JSON. El respaldo es de desarrollo local, no una recomendación de almacenamiento para producción.
+
+`read_user_secrets` obtiene el ID del archivo `backend/src/Pos.Api/Pos.Api.csproj`. En Windows lo busca bajo `%APPDATA%/Microsoft/UserSecrets/<UserSecretsId>/secrets.json`; sin APPDATA usa `~/.microsoft/usersecrets`. No copiar ese archivo al repositorio. Consultar las fuentes localmente con el responsable, sin volcar `dotnet user-secrets list`, valores de entorno o JSON sensible en informes/logs.
+
+### Credenciales distintas para propósitos distintos
+
+- **Login POS:** `Auth:Operators:<índice>:Username` y `Password`, efectivos según la tabla anterior. `ConfiguredOperatorAuthenticator` no autentica contra cuentas Odoo: compara usuario sin distinguir mayúsculas y contraseña exacta; el caso de uso recorta espacios del usuario, no de la contraseña.
+- **Conexión backend → Odoo:** `Odoo:ApiKey`; permanece en servidor. `Odoo:PosConfigId` delimita las ventas/historial al POS configurado.
+- **JWT:** `Jwt:Key` firma tokens, requiere al menos 32 caracteres; no es la contraseña de login. Issuer/Audience provienen de la configuración API.
+- **Administración de Odoo:** `DevelopmentAdminPassword` generada por el preparador está en el respaldo local y se excluye del entorno API. No es la contraseña del operador POS ni la clave del gestor de bases en `odoo.env.local`.
+
+No asumir que el par del archivo local es el efectivo si existen User Secrets o variables explícitas. No cambiar contraseñas para resolver una discrepancia de precedencia; identificar primero fuente, entorno y proceso correctos. Tras un cambio de configuración expresamente autorizado, reiniciar solo la instancia API correspondiente para volver a cargar sus opciones.
+
+| Clave | Necesidad / valor público base |
+|---|---|
+| `Odoo:BaseUrl`, `Odoo:Database` | Base: http://localhost:8069 y pos_db |
+| `Odoo:ApiKey` | Obligatoria; sin valor confidencial en Git |
+| `Odoo:PosConfigId` | ID real del POS; base null, ventas/historial fallan cerradas sin él |
+| `Odoo:TimeoutSeconds` | Base 15 |
+| `Auth:Operators` | Operadores configurados; base vacía |
+| `Jwt:Key` | Obligatoria; base vacía |
+| `Sales:JournalPath` | Diario durable; por defecto `.pos-operations` junto al ejecutable |
+
+Conservar el diario entre reinicios. En despliegue definir una ruta absoluta persistente y protegerla; no borrar claims para desbloquear cobros. La garantía idempotente actual requiere un host/diario compartido y reutilizar el UUID; no promete exclusión distribuida.
+
+## 5. Recuperación y diagnóstico
+
+| Síntoma | Comprobación / acción |
+|---|---|
+| Docker no responde | Iniciar el motor de Docker Desktop y comprobar el contexto. No borrar volúmenes |
+| Falta override/configuración local | Recuperar los archivos del entorno correcto. No arrancar solo con el compose base ni ejecutar el inicializador antiguo |
+| `!override` no reconocido | Comprobar compatibilidad de Docker Compose antes de preparar; no quitar la restricción de loopback |
+| Puerto ocupado o interfaz antigua | Ver PID/ruta con los comandos anteriores; comprobar el clon. Vite debe estar en 5173 y servir este frontend |
+| Faltan Odoo:ApiKey / Jwt:Key | Usar el lanzador; comprobar entorno efectivo (incluido DOTNET_ENVIRONMENT), fuentes y permisos de lectura sin imprimir valores |
+| 401 `auth.invalid_credentials` | Verificar operador/contraseña efectivos por clave; distinguir User Secrets de respaldo y de cuenta administrativa Odoo. No rotar secretos a ciegas |
+| JWT expirado | Volver a iniciar sesión; no desactivar validación |
+| API no conecta a Odoo | Revisar servicios, URL/base y validez/permisos de la API key con el responsable; no recrear base ni generar claves por ensayo |
+| Sesión POS cerrada | Coordinar su apertura por el procedimiento operativo del grupo; no abrir/cambiar sesiones como diagnóstico automatizado |
+| Historial/cotización fallan | Revisar conexión, ámbito POS y mensaje; usar reintento/recotización. No sustituir datos reales por simulaciones |
+| DLL bloqueadas al compilar | Mantener API activa y usar salida temporal de compilación, como en la sección de pruebas |
+| Resultado de venta incierto | Conservar UUID/diario y consultar la operación; no reenviar ni crear otra intención para resolverlo |
+
+Revisar archivos/logs locales sin publicarlos: pueden contener información sensible. Si el preparador falla, puede dejar `infra/prepare-error.env.local`; conservarlo localmente para diagnóstico, sin copiarlo íntegro al chat ni a Git. No borrar archivos de credenciales para forzar una nueva preparación.
+
+## 6. Pruebas y contratos actuales
+
+Comandos sin escritura comercial, con dependencias ya disponibles:
+
+```powershell
+npm --prefix frontend test
+npm --prefix frontend run build
+python -B scripts/test_run_week3.py
+$week3Artifacts = Join-Path ([System.IO.Path]::GetTempPath()) ('pos-week3-' + [guid]::NewGuid().ToString('N'))
+dotnet build backend/PosOdoo.slnx --artifacts-path $week3Artifacts
+dotnet test backend/tests/Pos.UnitTests --artifacts-path $week3Artifacts --no-build --no-restore
+```
+
+Las integraciones de `backend/tests/Pos.IntegrationTests` son de lectura. Para ejecutarlas con los mismos artefactos: `dotnet test backend/tests/Pos.IntegrationTests --artifacts-path $week3Artifacts --no-build --no-restore`. Requieren variables `Odoo__ApiKey`, `Odoo__BaseUrl`, `Odoo__Database` y configuración apropiada del entorno aislado, proporcionadas de forma privada. No cargan User Secrets automáticamente ni usan el entorno construido por run-week3.py; sin API key se omiten. No contabilizar una omisión como integración aprobada.
+
+`scripts/verify-week3.py` es una herramienta de verificación controlada, no el lanzador habitual: ejecuta pruebas, inicia otra API en 5049 y escribe un log local. Su entorno prioriza el respaldo local al actualizar las variables directamente; **no tiene la misma precedencia que run-week3.py**. No ejecutarlo junto a instancias/compilaciones incompatibles. No usar `--write` sin autorización explícita: puede enviar POST de venta y modificar evidencia. Para leer P09 existente basta consultar los documentos y endpoints GET autorizados.
+
+Resultados **de la auditoría AUD-03-FINAL del 2026-11-02**, no nuevas ejecuciones atribuibles a esta guía: 138 React, 89 unitarias .NET, 5 integraciones reales de lectura y 6 del lanzador = **238 aprobadas**, builds correctos. La reevaluación documental y su alcance están al final de [la auditoría](docs/sdd/semana3/AUDITORIA_CIERRE_SEMANA3.md). La validación visual corresponde al usuario; el agente no usa navegador.
+
+Todos los endpoints siguientes exigen JWT salvo login:
+
+| Método y ruta | Propósito |
+|---|---|
+| POST `/api/auth/login` | Token del operador |
+| GET `/api/products?search=&limit=` | Catálogo real |
+| GET `/api/discounts` | Políticas autorizadas |
+| GET `/api/pos/sessions/active` | Sesión activa |
+| POST `/api/sales/preview` | Total provisional sin impuestos |
+| POST `/api/sales/quote` | Cotización real para revisión, sin registrar venta |
+| POST `/api/sales` | Registro de venta y efectivo; requiere autorización operativa |
+| GET `/api/sales/operations/{uuid}` | Consulta/conciliación de la operación del operador |
+| GET `/api/sales/history?search=&beforeId=0&limit=20` | Resumen paginado, búsqueda por referencia de orden/POS |
+| GET `/api/sales?beforeId=0&limit=20` | Contrato histórico compatible, array de detalles |
+| GET `/api/sales/{id}` | Detalle real de una orden |
+
+## 7. Operaciones con efectos e historial
+
+La preparación inicial crea/configura datos POS y credenciales; no es una operación de recuperación habitual. El borrado de volúmenes/bases, reinicialización, cambio de contraseñas o eliminación del diario puede destruir datos o garantías y requiere una intervención específica autorizada. Esta guía no prescribe esos pasos.
+
+Los scripts `scripts/odoo-init.sh` y `scripts/prueba-temprana-venta.sh` son antecedentes de semanas previas, **fuera del arranque actual**: inicializan o escriben ventas y pueden mostrar claves. Se conservan como evidencia, no como comandos que ejecutar en esta instalación. No usar defaults históricos de administrador como credenciales vigentes.
+
+Evidencia real histórica: `docs/evidencias/semana3-p09.json` (dos productos, efectivo y un registro por UUID); no repetir P09 creando órdenes. Alcance técnico y decisiones finales: [especificación SDD](docs/sdd/semana3/especificacion.md); seguimiento: [PROGRESS](docs/sdd/semana3/PROGRESS.md). Backend mantiene Domain/Application/Infrastructure/Api; frontend mantiene domain/application/infrastructure/ui.
+
+Pendientes de semana 4: demostración P10, fichas finales de decisiones, defensa individual y prueba condicionada de stock cero. No prometer bloqueo por stock si Odoo no lo garantiza. La observación UX sobre el botón de recotización es no bloqueante y no cambia el arranque ni las reglas de cobro.
