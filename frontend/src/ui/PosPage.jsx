@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { Cart, lineSubtotal } from '../domain/cart.js';
 import SalesPanel from './SalesPanel.jsx';
 import QuantityInput from './QuantityInput.jsx';
+import { createViewNavigation, browserHashPort, viewFromHash } from './viewNavigation.js';
 
 const money = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 
@@ -14,7 +15,9 @@ function useDebounce(value, delay) {
   return debounced;
 }
 
-export default function PosPage({ useCases, username, onLogout }) {
+export default function PosPage({ useCases, username, onLogout, initialView = 'venta' }) {
+  const navigation = useMemo(() => createViewNavigation(browserHashPort), []);
+  const view = useSyncExternalStore(navigation.subscribe, navigation.read, () => viewFromHash(initialView));
   const [checkoutLocked, setCheckoutLocked] = useState(false);
   const [term, setTerm] = useState('');
   const debouncedTerm = useDebounce(term, 300);
@@ -92,8 +95,8 @@ export default function PosPage({ useCases, username, onLogout }) {
         <button className="link" onClick={onLogout}>Cerrar sesión</button>
       </header>
 
-      <nav className="areas" aria-label="Áreas del POS"><a href="#venta">Venta</a><a href="#historial">Historial</a><a href="#operaciones">Operaciones pendientes</a></nav>
-      <fieldset disabled={checkoutLocked} style={{ display: 'contents' }}>
+      <nav className="areas" aria-label="Áreas del POS"><a href="#venta" aria-current={view === 'venta' ? 'page' : undefined}>Venta</a><a href="#historial" aria-current={view === 'historial' ? 'page' : undefined}>Historial</a><a href="#operaciones" aria-current={view === 'operaciones' ? 'page' : undefined}>Operaciones pendientes</a></nav>
+      {view === 'venta' && <fieldset disabled={checkoutLocked} style={{ display: 'contents' }}>
       <section className="card" id="venta" tabIndex="-1">
         <h2>Venta · Catálogo</h2>
         <input
@@ -164,12 +167,12 @@ export default function PosPage({ useCases, username, onLogout }) {
           <dd className="total">{preview ? money.format(preview.total) : '—'}</dd>
         </dl>
         <p className="muted small">
-          {previewLoading ? 'Calculando con Odoo…' : 'Total provisional sin impuestos. Consulte el total con impuestos en Cobro e historial antes de confirmar.'}
+          {previewLoading ? 'Calculando con Odoo…' : 'Total provisional sin impuestos. Consulte el total con impuestos en la revisión de efectivo antes de confirmar.'}
         </p>
         {previewError && <p className="error" role="alert">{previewError}</p>}
       </section>
-      </fieldset>
-      <SalesPanel useCases={useCases} cart={cart} discountCode={discountCode} onLockChange={setCheckoutLocked} onConfirmed={() => setCart(Cart.empty())} />
+      </fieldset>}
+      <SalesPanel view={view} useCases={useCases} cart={cart} discountCode={discountCode} onLockChange={setCheckoutLocked} onConfirmed={() => setCart(Cart.empty())} />
     </div>
   );
 }

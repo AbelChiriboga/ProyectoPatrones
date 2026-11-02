@@ -3,7 +3,7 @@ export const saleKey = sale => JSON.stringify(sale);
 export function createSalesPresenter(useCases, onConfirmed = () => {}) {
   let sale = null;
   let state = { key: '', quote: null, method: '', busy: '', error: '', message: '',
-    pending: useCases.pendingSale(), history: [], historyLoaded: false, detail: null };
+    pending: useCases.pendingSale(), history: [], historyLoaded: false, detail: null, resultSale: null };
   const listeners = new Set();
   const patch = changes => { state = { ...state, ...changes }; listeners.forEach(fn => fn()); };
   const uncertain = 'Resultado incierto. No vuelva a cobrar; consulte la operación pendiente con el mismo identificador.';
@@ -26,9 +26,9 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
   }
   function result(value) {
     if (value.status === 'confirmed' && value.sale) {
-      patch({ detail: value.sale, quote: null, message: `Venta ${value.sale.reference} confirmada por Odoo (${value.sale.state}).` });
+      patch({ detail: value.sale, resultSale: value.sale, quote: null, message: `Venta ${value.sale.reference} confirmada por Odoo (${value.sale.state}).` });
       onConfirmed();
-    } else patch({ quote: null, message: uncertain });
+    } else patch({ quote: null, resultSale: null, message: uncertain });
   }
   return {
     read: () => state,
@@ -52,14 +52,14 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
     confirm() {
       if (state.busy || state.pending || !state.quote || !state.method) return Promise.resolve(false);
       const quote = state.quote, requested = sale, method = Number(state.method);
-      patch({ detail: null });
+      patch({ detail: null, resultSale: null });
       return run('Confirmando venta…', async () => {
         // Consume quote before awaiting: failures require an explicit new quote.
         patch({ quote: null });
         result(await useCases.confirmSale({ sessionId: quote.sessionId, ...requested }, method, quote.total));
       });
     },
-    reconcile: () => run('Conciliando operación…', async () => { patch({ detail: null }); result(await useCases.reconcileSale()); }),
+    reconcile: () => run('Conciliando operación…', async () => { patch({ detail: null, resultSale: null }); result(await useCases.reconcileSale()); }),
     history: (before = 0) => run('Consultando historial…', async () => patch({ history: await useCases.salesHistory(before), historyLoaded: true, detail: null })),
     detail: id => run('Consultando detalle…', async () => { patch({ detail: null }); patch({ detail: await useCases.saleDetail(id) }); }),
   };

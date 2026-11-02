@@ -91,3 +91,8 @@ button { white-space: normal; }
   .topbar { flex-wrap: wrap; }
   .cart li, .cart li:has(.quantity-editor .error) { grid-template-columns: minmax(0, 1fr) auto; }
 }
+
+.areas a[aria-current="page"] { font-weight: 700; border-bottom: 3px solid currentColor; }
+.ticket { border: 1px dashed var(--border); padding: 1rem; margin: 1rem 0; }
+.ticket li { display: grid; gap: 0.25rem; border-top: 1px solid var(--border); padding: 0.6rem 0; }
+.ticket h4 { margin-top: 0; }
