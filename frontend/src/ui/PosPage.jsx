@@ -6,6 +6,8 @@ import CatalogPanel from './CatalogPanel.jsx';
 import { createCatalogPresenter } from './catalogPresenter.js';
 import { createViewNavigation, browserHashPort, viewFromHash } from './viewNavigation.js';
 import { displayAmount } from './salesViewModel.js';
+import { createRemovalPresenter } from './removalPresenter.js';
+import RemoveProductDialog from './RemoveProductDialog.jsx';
 
 export default function PosPage({ useCases, username, onLogout, initialView = 'venta' }) {
   const navigation = useMemo(() => createViewNavigation(browserHashPort), []);
@@ -18,6 +20,22 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
   const [checkoutLocked, setCheckoutLocked] = useState(false);
   const [cart, setCart] = useState(Cart.empty());
   const [cartMessage, setCartMessage] = useState('');
+  const cartRef = useRef(cart);
+  const lockedRef = useRef(checkoutLocked);
+  cartRef.current = cart;
+  lockedRef.current = checkoutLocked;
+  const removal = useMemo(() => createRemovalPresenter({
+    readCart: () => cartRef.current,
+    canRemove: () => !lockedRef.current,
+    remove: id => {
+      const updated = useCases.removeFromCart(cartRef.current, id);
+      cartRef.current = updated;
+      setCart(updated);
+      setCartMessage('');
+    },
+  }), [useCases]);
+  const removalState = useSyncExternalStore(removal.subscribe, removal.read, removal.read);
+  useEffect(() => { if (view !== 'venta') removal.cancel(); }, [view, removal]);
   const [discounts, setDiscounts] = useState([]);
   const [discountError, setDiscountError] = useState('');
   const [discountCode, setDiscountCode] = useState('none');
@@ -62,9 +80,13 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
       <div className="operator"><span>Operador: <strong>{username}</strong></span><button type="button" className="link" onClick={onLogout}>Cerrar sesión</button></div>
     </header>
     <nav className="workspace-nav" aria-label="Áreas del POS">
-      <ol className="steps"><li><a href="#venta" aria-current={view === 'venta' ? 'step' : undefined}><span className="step-number">1</span> Venta</a></li>
-        <li className="step-arrow" aria-hidden="true">→</li><li><a href="#cobro" aria-current={view === 'cobro' ? 'step' : undefined}><span className="step-number">2</span> Cobro</a></li></ol>
-      <div className="secondary-nav"><a href="#historial" aria-current={view === 'historial' ? 'page' : undefined}>Historial</a><a href="#operaciones" aria-current={view === 'operaciones' ? 'page' : undefined}>Operaciones pendientes</a></div>
+      <div className="primary-sections">
+        <a href="#venta" aria-current={['venta', 'cobro'].includes(view) ? 'page' : undefined}><strong>Venta</strong><span>Preparar y cobrar</span></a>
+        <a href="#historial" aria-current={view === 'historial' ? 'page' : undefined}><strong>Historial</strong><span>Buscar órdenes y detalle</span></a>
+        <a href="#operaciones" aria-current={view === 'operaciones' ? 'page' : undefined}><strong>Operaciones pendientes</strong><span>Consultar resultados inciertos</span></a>
+      </div>
+      {['venta', 'cobro'].includes(view) && <ol className="steps" aria-label="Pasos de venta"><li><a href="#venta" aria-current={view === 'venta' ? 'step' : undefined}><span className="step-number">1</span> Venta</a></li>
+        <li className="step-arrow" aria-hidden="true">→</li><li><a href="#cobro" aria-current={view === 'cobro' ? 'step' : undefined}><span className="step-number">2</span> Cobro</a></li></ol>}
     </nav>
     <main className="workspace" id="main-content">
       <div className="view-heading"><div><p className="eyebrow">{view === 'venta' ? 'Paso 1 de 2' : view === 'cobro' ? 'Paso 2 de 2' : 'Consulta del POS'}</p><h1 ref={heading} tabIndex="-1">{title}</h1></div>
@@ -80,7 +102,7 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
           <ul className="cart">{cart.lines.map(line => <li key={line.productId}>
             <div className="cart-line-heading"><div><strong>{line.name}</strong><span className="hint">{displayAmount(line.unitPrice)} c/u</span></div><span className="price">{displayAmount(lineSubtotal(line))}</span></div>
             <div className="cart-line-actions"><QuantityInput line={line} onCommit={quantityCallbacks.get(line.productId)} />
-              <button type="button" className="danger" onClick={() => updateCart(() => useCases.removeFromCart(cart, line.productId))} aria-label={`Quitar ${line.name}`}>Quitar</button></div>
+              <button type="button" className="danger" onClick={() => removal.request(line.productId)} aria-label={`Quitar ${line.name}`}>Quitar</button></div>
           </li>)}</ul>
           <div className="cart-summary"><label htmlFor="discount-code">Descuento autorizado</label>
             <select id="discount-code" value={discountCode} onChange={e => setDiscountCode(e.target.value)}>
@@ -99,5 +121,6 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
       <SalesPanel view={view} useCases={useCases} cart={cart} discountCode={discountCode}
         onLockChange={setCheckoutLocked} onContinue={() => navigation.select('cobro')} onConfirmed={() => setCart(Cart.empty())} />
     </main>
+    <RemoveProductDialog state={removalState} onCancel={removal.cancel} onConfirm={removal.confirm} />
   </div>;
 }

@@ -1,4 +1,5 @@
 import { parseCatalogSearch } from './catalogSearch.js';
+import { parseHistorySearch } from './historyQuery.js';
 
 // Casos de uso del frontend. Dependen de dos puertos que se inyectan desde fuera:
 //
@@ -44,6 +45,12 @@ export function createUseCases({ api, session, pending }) {
       const result = await api.saleOperation(request.operationId);
       if (result.status === 'confirmed') pending.clear(owner);
       return result;
+    },
+    salesHistoryPage({ search = '', beforeId = 0, limit = 20 } = {}) {
+      const term = parseHistorySearch(search);
+      if (!Number.isInteger(beforeId) || beforeId < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100)
+        throw new UseCaseError('history.pagination', 'Paginación inválida.');
+      return api.salesHistoryPage({ search: term, beforeId, limit });
     },
     salesHistory: (beforeId) => api.salesHistory(beforeId),
     saleDetail: (id) => api.saleDetail(id),

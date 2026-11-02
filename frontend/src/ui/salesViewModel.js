@@ -13,3 +13,10 @@ export function quoteSummary(quote) {
   const net = lines.reduce((sum, line) => sum + line.net, 0);
   return { subtotal, discount: subtotal - net, tax: lines.reduce((sum, line) => sum + line.tax, 0), total: quote.total };
 }
+
+export function displayDateUtc(value) {
+  if (!value) return 'No informada';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'No informada';
+  return new Intl.DateTimeFormat('es-EC', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}

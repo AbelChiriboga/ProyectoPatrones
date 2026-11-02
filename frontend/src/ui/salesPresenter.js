@@ -1,9 +1,12 @@
+import { parseHistorySearch } from '../application/historyQuery.js';
+
 // Observable UI state; use cases own API contracts, persistence and idempotency.
 export const saleKey = sale => JSON.stringify(sale);
 export function createSalesPresenter(useCases, onConfirmed = () => {}) {
-  let sale = null, activeView = null, historyRequest = null;
+  let sale = null, activeView = null, historyGeneration = 0, detailGeneration = 0;
+  let lastHistoryRequest = { cursor: 0, query: '', cursors: [0], index: 0 };
   let state = { key: '', quote: null, method: '', reviewAccepted: false, busy: '', error: '', message: '', notice: '', outcome: 'idle',
-    pending: useCases.pendingSale(), history: [], historyLoaded: false, historyStatus: 'idle', historyError: '', detail: null, resultSale: null };
+    pending: useCases.pendingSale(), history: [], historyLoaded: false, historyStatus: 'idle', historyError: '', historyTerm: '', historySearchError: '', historyQuery: '', historyCursors: [0], historyIndex: 0, historyHasMore: false, historyNextBeforeId: null, detail: null, detailOpen: false, detailId: null, detailStatus: 'idle', detailError: '', resultSale: null };
   const listeners = new Set();
   const patch = changes => { state = { ...state, ...changes }; listeners.forEach(fn => fn()); };
   const uncertain = 'Resultado incierto. No vuelva a cobrar; consulte la operación pendiente con el mismo identificador.';
@@ -28,10 +31,33 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
   }
   function result(value) {
     if (value.status === 'confirmed' && value.sale) {
-      patch({ detail: value.sale, resultSale: value.sale, quote: null, reviewAccepted: false, outcome: 'confirmed',
+      patch({ resultSale: value.sale, quote: null, reviewAccepted: false, outcome: 'confirmed',
         message: `Venta ${value.sale.reference} confirmada por Odoo (${value.sale.state}).` });
       onConfirmed();
     } else patch({ quote: null, reviewAccepted: false, resultSale: null, outcome: 'uncertain', message: uncertain });
+  }
+  function closeDetail() {
+    detailGeneration += 1;
+    patch({ detailOpen: false, detail: null, detailId: null, detailStatus: 'idle', detailError: '' });
+  }
+  async function loadHistory(request) {
+    lastHistoryRequest = request;
+    const generation = ++historyGeneration;
+    closeDetail();
+    patch({ historyStatus: 'loading', historyError: '' });
+    try {
+      const page = await useCases.salesHistoryPage({ search: request.query, beforeId: request.cursor, limit: 20 });
+      if (generation !== historyGeneration) return false;
+      if (!Array.isArray(page.items) || page.items.length > 20 || typeof page.hasMore !== 'boolean' ||
+          (page.hasMore && (!Number.isInteger(page.nextBeforeId) || page.nextBeforeId <= 0 || (request.cursor > 0 && page.nextBeforeId >= request.cursor))))
+        throw new Error('Invalid history page');
+      patch({ history: page.items, historyLoaded: true, historyStatus: 'ready', historyQuery: request.query,
+        historyCursors: request.cursors, historyIndex: request.index, historyHasMore: page.hasMore, historyNextBeforeId: page.nextBeforeId });
+    } catch (error) {
+      if (generation === historyGeneration) patch({ historyStatus: 'error', historyError: error.status === 401
+        ? 'Inicie sesión nuevamente para consultar las órdenes.' : 'No se pudieron consultar las órdenes. Revise la conexión y vuelva a intentar.' });
+    }
+    return true;
   }
   const presenter = {
     read: () => state,
@@ -64,20 +90,46 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
       });
     },
     reconcile: () => run('Consultando operación…', async () => { patch({ detail: null, resultSale: null }); result(await useCases.reconcileSale()); }),
-    history(before = 0) {
-      if (historyRequest) return historyRequest;
-      patch({ historyStatus: 'loading', historyError: '', detail: null });
-      historyRequest = Promise.resolve().then(async () => {
-        try { patch({ history: await useCases.salesHistory(before), historyLoaded: true, historyStatus: 'ready' }); }
-        catch (error) { patch({ historyStatus: 'error', historyError: error.status === 401 ? 'Inicie sesión nuevamente para consultar las órdenes.' : 'No se pudieron consultar las órdenes. Revise la conexión y vuelva a intentar.' }); }
-        finally { historyRequest = null; }
-      });
-      return historyRequest;
+    editHistorySearch(value) {
+      try { parseHistorySearch(value); patch({ historyTerm: value, historySearchError: '' }); }
+      catch (error) { patch({ historySearchError: error.message }); }
     },
-    detail: id => run('Consultando detalle…', async () => { patch({ detail: null }); patch({ detail: await useCases.saleDetail(id) }); }, true),
+    searchHistory() {
+      if (state.historySearchError) return Promise.resolve(false);
+      return loadHistory({ cursor: 0, query: parseHistorySearch(state.historyTerm), cursors: [0], index: 0 });
+    },
+    history(before = 0) { return loadHistory({ cursor: before, query: state.historyQuery, cursors: [before], index: 0 }); },
+    retryHistory: () => loadHistory(lastHistoryRequest),
+    nextHistory() {
+      if (state.historyStatus !== 'ready' || !state.historyHasMore) return Promise.resolve(false);
+      const cursor = state.historyNextBeforeId;
+      return loadHistory({ cursor, query: state.historyQuery, cursors: [...state.historyCursors.slice(0, state.historyIndex + 1), cursor], index: state.historyIndex + 1 });
+    },
+    previousHistory() {
+      if (state.historyStatus !== 'ready' || state.historyIndex === 0) return Promise.resolve(false);
+      const index = state.historyIndex - 1;
+      return loadHistory({ cursor: state.historyCursors[index], query: state.historyQuery, cursors: state.historyCursors, index });
+    },
+    async detail(id) {
+      if (!Number.isInteger(id) || id <= 0) return false;
+      const generation = ++detailGeneration;
+      patch({ detailOpen: true, detailId: id, detail: null, detailStatus: 'loading', detailError: '' });
+      try {
+        const detail = await useCases.saleDetail(id);
+        if (!state.detailOpen || generation !== detailGeneration) return false;
+        if (detail.id !== id) throw new Error('Unexpected sale identifier');
+        patch({ detail, detailStatus: 'ready' });
+      } catch {
+        if (state.detailOpen && generation === detailGeneration)
+          patch({ detailStatus: 'error', detailError: 'No se pudo consultar el detalle. Cierre o vuelva a intentar.' });
+      }
+      return true;
+    },
+    closeDetail,
     enterView(view) {
       if (view === activeView) return Promise.resolve(false);
       activeView = view;
+      if (view !== 'historial' && state.detailOpen) closeDetail();
       if (view === 'historial') return presenter.history();
       if (view === 'cobro' && !state.quote && !state.pending) return presenter.quote();
       return Promise.resolve(false);

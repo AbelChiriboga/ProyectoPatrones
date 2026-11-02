@@ -16,9 +16,9 @@ describe('SDD-03.4-C defects reproduced before correction',()=>{
     expect(editor.commit('1').error).toBe('');expect(change).not.toHaveBeenCalled();
   });
   it('DEF-06 starts loading history on entry without a preliminary button',async()=>{
-    const cases={pendingSale:()=>null,salesHistory:vi.fn().mockResolvedValue([])};
+    const cases={pendingSale:()=>null,salesHistoryPage:vi.fn().mockResolvedValue({items:[],hasMore:false,nextBeforeId:null})};
     const presenter=createSalesPresenter(cases);await presenter.enterView('historial');
-    expect(cases.salesHistory).toHaveBeenCalledTimes(1);expect(presenter.read().historyLoaded).toBe(true);
+    expect(cases.salesHistoryPage).toHaveBeenCalledTimes(1);expect(presenter.read().historyLoaded).toBe(true);
   });
   it('DEF-07 separates the guided checkout step from the two-column sale',()=>{
     const props={useCases:{pendingSale:()=>null},username:'a',onLogout:()=>{}};

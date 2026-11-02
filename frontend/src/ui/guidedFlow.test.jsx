@@ -89,18 +89,18 @@ describe('quantity correction, composition and explicit step actions',()=>{
 
 describe('guided views, auto-history and verified review',()=>{
   it('loads on history entry once even on repeated effect; exposes empty/error/retry and reloads on reentry',async()=>{
-    const api={pendingSale:()=>null,salesHistory:vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValue([])};
+    const api={pendingSale:()=>null,salesHistoryPage:vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValue({items:[],hasMore:false,nextBeforeId:null})};
     const flow=createSalesPresenter(api);const first=flow.enterView('historial');flow.enterView('historial');
-    expect(flow.read().historyStatus).toBe('loading');await first;expect(api.salesHistory).toHaveBeenCalledTimes(1);expect(flow.read().historyStatus).toBe('error');
+    expect(flow.read().historyStatus).toBe('loading');await first;expect(api.salesHistoryPage).toHaveBeenCalledTimes(1);expect(flow.read().historyStatus).toBe('error');
     const failed=renderToStaticMarkup(<HistoryView state={flow.read()} onRetry={noop} onDetail={noop} onNext={noop} />);
     expect(failed).toContain('Reintentar historial');expect(failed).not.toContain('No hay ventas en esta página');
     await flow.history();expect(flow.read().historyStatus).toBe('ready');expect(flow.read().historyError).toBe('');
     const empty=renderToStaticMarkup(<HistoryView state={flow.read()} onRetry={noop} onDetail={noop} onNext={noop} />);
     expect(empty).toContain('No hay ventas en esta página');expect(empty).not.toContain('Ver historial');
-    await flow.enterView('venta');await flow.enterView('historial');expect(api.salesHistory).toHaveBeenCalledTimes(3);
+    await flow.enterView('venta');await flow.enterView('historial');expect(api.salesHistoryPage).toHaveBeenCalledTimes(3);
   });
   it('can load history during another in-flight action and recover from synchronous read failure',async()=>{
-    const slow=deferred();const api={pendingSale:()=>null,activeSession:vi.fn().mockReturnValue(slow.promise),salesHistory:vi.fn().mockImplementationOnce(()=>{throw new Error('offline');}).mockResolvedValue([]),quoteSale:vi.fn().mockResolvedValue({methods:[],lines:[]})};
+    const slow=deferred();const api={pendingSale:()=>null,activeSession:vi.fn().mockReturnValue(slow.promise),salesHistoryPage:vi.fn().mockImplementationOnce(()=>{throw new Error('offline');}).mockResolvedValue({items:[],hasMore:false,nextBeforeId:null}),quoteSale:vi.fn().mockResolvedValue({methods:[],lines:[]})};
     const flow=createSalesPresenter(api);flow.setSale({lines:[{productId:7,quantity:1}],discountCode:'none'});
     const quote=flow.enterView('cobro');await flow.enterView('historial');expect(flow.read().historyStatus).toBe('error');await flow.history();expect(flow.read().historyStatus).toBe('ready');
     slow.resolve({id:3});await quote;
@@ -126,7 +126,7 @@ describe('guided views, auto-history and verified review',()=>{
     const review=renderToStaticMarkup(<QuoteReview quote={quote} cart={Cart.empty().addProduct(product,2)} />);
     expect(review).toContain('1,37 USD');expect(review).toContain('12,37 USD');expect(review).toContain('Café americano');
     const order={id:98,reference:'Caja-real-98',state:'paid',currency:'USD',total:12.37};
-    const api={pendingSale:()=>null,salesHistory:vi.fn().mockResolvedValue([order]),saleDetail:vi.fn().mockResolvedValue({...order,lines:quote.lines,methods:quote.methods,tax:1.37,paid:12.37})};
+    const api={pendingSale:()=>null,salesHistoryPage:vi.fn().mockResolvedValue({items:[order],hasMore:false,nextBeforeId:null}),saleDetail:vi.fn().mockResolvedValue({...order,lines:quote.lines,methods:quote.methods,tax:1.37,paid:12.37})};
     const flow=createSalesPresenter(api);await flow.enterView('historial');await flow.detail(98);
     const history=renderToStaticMarkup(<HistoryView state={flow.read()} onRetry={noop} onDetail={noop} onNext={noop} />);
     expect(history).toContain('Caja-real-98');expect(history).toContain('Pagada');expect(history).toContain('(paid)');expect(history).not.toContain('Ver historial');expect(orderStateLabel('done')).toBe('Contabilizada');

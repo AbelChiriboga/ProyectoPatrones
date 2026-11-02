@@ -32,7 +32,7 @@ describe('checkout presentation transitions CA-02..07 without browser',()=>{
   });
   it('two UI confirm actions send once while in flight and confirm only with server evidence',async()=>{
     const d=deferred(),x=setup();await x.flow.quote();x.flow.acceptReview(true);x.api.confirmSale.mockReturnValue(d.promise);const first=x.flow.confirm();await x.flow.confirm();expect(x.api.confirmSale).toHaveBeenCalledTimes(1);expect(x.flow.read().busy).toBeTruthy();
-    const record={reference:'Odoo-reference',state:'paid'};d.resolve({status:'confirmed',sale:record});await first;expect(x.flow.read().detail).toBe(record);expect(x.confirmed).toHaveBeenCalledTimes(1);
+    const record={reference:'Odoo-reference',state:'paid'};d.resolve({status:'confirmed',sale:record});await first;expect(x.flow.read().resultSale).toBe(record);expect(x.flow.read().detail).toBeNull();expect(x.confirmed).toHaveBeenCalledTimes(1);
   });
   it.each(['timeout','uncertain'])('never retries or announces paid after %s; reconciles with existing use case',async mode=>{
     let pending=null;const x=setup({pendingSale:()=>pending,reconcileSale:vi.fn().mockResolvedValue({status:'uncertain'})});await x.flow.quote();x.flow.acceptReview(true);
@@ -44,8 +44,8 @@ describe('checkout presentation transitions CA-02..07 without browser',()=>{
   });
   it('history and detail preserve API reference, amounts and state through navigation actions',async()=>{
     const record={id:42,reference:'Runtime sale',total:17.21,state:'done',currency:'EUR'};
-    const x=setup({salesHistory:vi.fn().mockResolvedValue([record]),saleDetail:vi.fn().mockResolvedValue(record)});
+    const x=setup({salesHistoryPage:vi.fn().mockResolvedValue({items:[record],hasMore:false,nextBeforeId:null}),saleDetail:vi.fn().mockResolvedValue(record)});
     await x.flow.history();expect(x.flow.read().history).toEqual([record]);await x.flow.detail(42);expect(x.flow.read().detail).toBe(record);expect(x.api.saleDetail).toHaveBeenCalledWith(42);
-    x.api.salesHistory.mockResolvedValue([]);await x.flow.history(42);expect(x.flow.read().historyLoaded).toBe(true);expect(x.flow.read().detail).toBeNull();expect(x.api.salesHistory).toHaveBeenLastCalledWith(42);
+    x.api.salesHistoryPage.mockResolvedValue({items:[],hasMore:false,nextBeforeId:null});await x.flow.history(42);expect(x.flow.read().historyLoaded).toBe(true);expect(x.flow.read().detail).toBeNull();expect(x.api.salesHistoryPage).toHaveBeenLastCalledWith({search:'',beforeId:42,limit:20});
   });
 });

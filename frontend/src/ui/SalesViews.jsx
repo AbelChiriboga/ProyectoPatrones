@@ -1,13 +1,14 @@
-import { displayAmount, orderStateLabel, quoteSummary } from './salesViewModel.js';
+import SafeDialog from './SafeDialog.jsx';
+import { displayAmount, displayDateUtc, orderStateLabel, quoteSummary } from './salesViewModel.js';
 
 export function OrderState({ value }) {
   return <span className={`order-state state-${['paid', 'done', 'draft', 'cancel'].includes(value) ? value : 'unknown'}`}>
     {orderStateLabel(value)} <small>({value})</small>
   </span>;
 }
-export function VerifiedDetail({ sale }) {
+export function VerifiedDetail({ sale, showHeading = true }) {
   return <article className="verified-detail" aria-label={`Detalle ${sale.reference}`}>
-    <div className="panel-heading"><div><p className="eyebrow">Información registrada en Odoo</p><h2>Detalle {sale.reference}</h2></div><OrderState value={sale.state} /></div>
+    <div className="panel-heading"><div><p className="eyebrow">Información registrada en Odoo</p>{showHeading ? <h2>Detalle {sale.reference}</h2> : <strong>{sale.reference}</strong>}</div><OrderState value={sale.state} /></div>
     <dl className="totals"><dt>Importe registrado</dt><dd className="total">{displayAmount(sale.total, sale.currency)}</dd>
       <dt>Impuestos registrados</dt><dd>{displayAmount(sale.tax, sale.currency)}</dd><dt>Pagado</dt><dd>{displayAmount(sale.paid, sale.currency)}</dd></dl>
     <ul className="review-lines">{sale.lines.map((line, i) => <li key={i}><strong>Producto {line.productId} · {line.quantity} unidades</strong>
@@ -32,22 +33,50 @@ export function QuoteReview({ quote, cart }) {
     <p className="hint">Los importes proceden de la cotización real. Cualquier cambio requiere una nueva consulta.</p>
   </section>;
 }
-export function HistoryView({ state, onRetry, onDetail, onNext }) {
+export function SaleDetailDialog({ state, onClose, onRetry }) {
+  if (!state.detailOpen) return null;
+  return <SafeDialog title={state.detail ? `Detalle ${state.detail.reference}` : `Detalle de venta ${state.detailId}`}
+    description="Consulta de una orden registrada en Odoo. Cerrar no altera la venta ni el historial." onDismiss={onClose}>
+    <div className="dialog-body">
+      {state.detailStatus === 'loading' && <p role="status">Consultando detalle…</p>}
+      {state.detailStatus === 'error' && <div className="notice notice-error" role="alert"><p>{state.detailError}</p><button className="secondary" onClick={onRetry}>Reintentar detalle</button></div>}
+      {state.detailStatus === 'ready' && state.detail && <VerifiedDetail sale={state.detail} showHeading={false} />}
+    </div>
+    <footer className="dialog-actions"><button type="button" className="secondary" data-dialog-initial-focus onClick={onClose}>Cerrar detalle</button></footer>
+  </SafeDialog>;
+}
+export function HistoryView({ state, onRetry, onRefresh, onDetail, onNext, onPrevious, onSearchTerm, onSearch, onCloseDetail, onRetryDetail }) {
   const loading = ['idle', 'loading'].includes(state.historyStatus);
-  return <section className="card history-panel" aria-label="Órdenes registradas">
-    <div className="panel-heading"><p className="hint">Ventas del punto de venta autorizado</p>
-      {state.historyStatus === 'ready' && <button className="secondary" disabled={!!state.busy} onClick={onRetry}>Actualizar órdenes</button>}</div>
-    {loading && <p className="empty-state" role="status">Cargando órdenes…</p>}
-    {state.historyStatus === 'error' && <div className="notice notice-error" role="alert"><strong>No se pudo cargar el historial</strong><p>{state.historyError}</p><button className="secondary" onClick={onRetry}>Reintentar historial</button></div>}
-    {state.historyStatus === 'ready' && <>
-      {!state.history.length && <div className="empty-state"><strong>No hay ventas en esta página</strong><p>Las órdenes aparecerán aquí cuando estén registradas en Odoo.</p></div>}
-      <ul className="sales-history">{state.history.map(sale => <li key={sale.id}>
-        <div><strong>{sale.reference}</strong><OrderState value={sale.state} /></div>
-        <span className="price">{displayAmount(sale.total, sale.currency)}</span>
-        <button className="secondary" disabled={!!state.busy} onClick={() => onDetail(sale.id)}>Ver detalle de {sale.reference}</button>
-      </li>)}</ul>
-      {state.history.length === 20 && <button className="secondary" disabled={!!state.busy} onClick={onNext}>Página siguiente</button>}
-    </>}
-    {state.detail && <VerifiedDetail sale={state.detail} />}
-  </section>;
+  return <>
+    <section className="card history-panel" aria-label="Órdenes registradas">
+      <form className="history-search" onSubmit={event => { event.preventDefault(); onSearch(); }}>
+        <div><label htmlFor="history-search">Buscar órdenes</label>
+          <input id="history-search" type="search" placeholder="Referencia de la orden o referencia POS" value={state.historyTerm ?? ''}
+            aria-invalid={!!state.historySearchError} aria-describedby={`history-search-help${state.historySearchError ? ' history-search-error' : ''}`}
+            onChange={event => onSearchTerm(event.target.value)} />
+          <p id="history-search-help" className="hint">Busca en Odoo, no solo en esta página. Hasta 100 caracteres.</p>
+          {state.historySearchError && <p id="history-search-error" role="alert" className="error">{state.historySearchError}</p>}
+        </div><button type="submit" disabled={!!state.historySearchError}>Buscar</button>
+      </form>
+      <div className="panel-heading"><p className="hint">{state.historyQuery ? `Resultados para «${state.historyQuery}»` : 'Ventas del punto de venta autorizado'} · Registro más reciente primero</p>
+        {state.historyStatus === 'ready' && <button className="secondary" onClick={onRefresh}>Actualizar órdenes</button>}</div>
+      {loading && <p className="empty-state" role="status">Cargando órdenes…</p>}
+      {state.historyStatus === 'error' && <div className="notice notice-error" role="alert"><strong>No se pudo cargar el historial</strong><p>{state.historyError}</p><button className="secondary" onClick={onRetry}>Reintentar historial</button></div>}
+      {state.historyStatus === 'ready' && <>
+        {!state.history.length ? <div className="empty-state"><strong>No hay ventas en esta página</strong><p>{state.historyQuery ? 'No se encontraron órdenes para la referencia consultada.' : 'Las órdenes aparecerán aquí cuando estén registradas en Odoo.'}</p></div>
+          : <div className="history-table-wrap"><table className="history-table"><caption className="sr-only">Ventas reales de Odoo, página {(state.historyIndex ?? 0) + 1}</caption>
+            <thead><tr><th scope="col">Referencia</th><th scope="col">Fecha (UTC)</th><th scope="col">Total</th><th scope="col">Estado</th><th scope="col">Detalle</th></tr></thead>
+            <tbody>{state.history.map(sale => <tr key={sale.id}><th scope="row">{sale.reference}</th><td>{displayDateUtc(sale.dateUtc)}</td>
+              <td className="price">{displayAmount(sale.total, sale.currency)}</td><td><OrderState value={sale.state} /></td>
+              <td><button type="button" className="secondary" onClick={() => onDetail(sale.id)}>Ver detalle de {sale.reference}</button></td></tr>)}</tbody>
+          </table></div>}
+      </>}
+      <nav className="history-pagination" aria-label="Páginas del historial">
+        <button type="button" className="secondary" disabled={loading || state.historyStatus !== 'ready' || !(state.historyIndex > 0)} onClick={onPrevious}>Anterior</button>
+        <span role="status">Página {(state.historyIndex ?? 0) + 1}</span>
+        <button type="button" className="secondary" disabled={loading || state.historyStatus !== 'ready' || !state.historyHasMore} onClick={onNext}>Siguiente</button>
+      </nav>
+    </section>
+    <SaleDetailDialog state={state} onClose={onCloseDetail} onRetry={onRetryDetail} />
+  </>;
 }

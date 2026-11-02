@@ -62,8 +62,9 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
       </div>}
       {state.resultSale && <div className="card"><VerifiedDetail sale={state.resultSale} /></div>}
     </>}
-    {view === 'historial' && <HistoryView state={state} onRetry={() => presenter.history()} onDetail={presenter.detail}
-      onNext={() => presenter.history(state.history.at(-1).id)} />}
+    {view === 'historial' && <HistoryView state={state} onRetry={presenter.retryHistory} onRefresh={() => presenter.history()} onDetail={presenter.detail}
+      onNext={presenter.nextHistory} onPrevious={presenter.previousHistory} onSearchTerm={presenter.editHistorySearch} onSearch={presenter.searchHistory}
+      onCloseDetail={presenter.closeDetail} onRetryDetail={() => presenter.detail(state.detailId)} />}
     {view === 'operaciones' && <section className="card pending-panel" aria-label="Consulta de resultados inciertos">
       <p className="eyebrow">Consulta y conciliación</p>
       {state.pending ? <><h2>Una operación necesita verificación</h2><p>Conserva este identificador. No repitas el cobro ni generes una venta nueva para resolverlo.</p>
