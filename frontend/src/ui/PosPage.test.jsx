@@ -4,12 +4,13 @@ import PosPage from './PosPage.jsx';
 
 // Server rendering only: no browser, DOM emulator, HTTP requests or sales.
 describe('week 3 is mounted in the POS', () => {
-  it('includes checkout alongside cart and links to separate views', () => {
+  it('includes the sale ticket and a separate guided checkout step', () => {
     const html = renderToStaticMarkup(<PosPage useCases={{ pendingSale: () => null }} username="operador" onLogout={() => {}} />);
     expect(html).toContain('Catálogo');
     expect(html).toContain('Carrito');
-    expect(html).toContain('Cobro · efectivo exacto');
-    expect(html).toContain('Consultar total con impuestos');
+    expect(html).toContain('href="#cobro"');
+    expect(html).toContain('Revisar y continuar a cobro');
+    expect(html).not.toContain('Confirmar venta y efectivo');
     expect(html).toContain('href="#historial"');
     expect(html).not.toContain('Ver historial');
     expect(html).not.toContain('al registrar la venta (semana 3)');

@@ -4,15 +4,16 @@ const isDraft = value => typeof value === 'string' && /^[0-9]*$/.test(value) &&
   (value === '' || Number.isSafeInteger(Number(value)));
 export function createQuantityEditor(quantity, change) {
   let state = { draft: String(quantity), error: '' };
-  let rejected = false;
   return {
     read: () => state,
+    step(delta) {
+      // Explicit +/- uses the confirmed domain value, never an ambiguous draft.
+      return this.commit(String(quantity + delta));
+    },
     edit(value) {
       if (!isDraft(value)) {
-        rejected = true;
-        state = { ...state, error: invalid };
+        state = { draft: state.draft, error: invalid };
       } else {
-        rejected = false;
         state = { draft: value, error: '' };
       }
       return state;
@@ -20,14 +21,13 @@ export function createQuantityEditor(quantity, change) {
     commit(actualValue = state.draft) {
       // Re-read the control: programmatic changes can bypass onChange.
       try {
-        if (rejected || !isDraft(actualValue) || actualValue === '') throw new Error(invalid);
+        if (!isDraft(actualValue) || actualValue === '') throw new Error(invalid);
         const value = Number(actualValue);
         if (value !== quantity) change(value);
         quantity = value;
         state = { draft: String(value), error: '' };
       } catch (error) {
-        state = { draft: String(quantity), error: error.message };
-        rejected = true;
+        state = { draft: String(quantity), error: error.message, restored: true };
       }
       return state;
     },
@@ -36,6 +36,7 @@ export function createQuantityEditor(quantity, change) {
 
 // Both keyboard Enter and blur use this exact validation path.
 export function commitQuantityControl(editor, event) {
+  if (event.isComposing || event.nativeEvent?.isComposing) return null;
   if (event.type === 'keydown' && event.key !== 'Enter') return null;
   if (event.type === 'keydown') event.preventDefault();
   return editor.commit(event.currentTarget.value);

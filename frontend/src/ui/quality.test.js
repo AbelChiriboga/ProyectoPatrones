@@ -19,28 +19,28 @@ describe('CA-03.4-01 quantity editing against domain',()=>{
   });
   it.each(['0','-1','1.5','text','6'])('rejects invalid or over-stock input %s',value=>{
     let cart=Cart.empty().addProduct({id:7,name:'A',unitPrice:2,quantityAvailable:5},2);
-    const original=cart;const editor=createQuantityEditor(2,n=>{cart=cart.changeQuantity(7,n);});editor.edit(value);expect(editor.commit().error).toBeTruthy();expect(cart).toBe(original);
+    const original=cart;const editor=createQuantityEditor(2,n=>{cart=cart.changeQuantity(7,n);});editor.edit(value);expect(editor.commit(value).error).toBeTruthy();expect(cart).toBe(original);
   });
 });
 describe('checkout presentation transitions CA-02..07 without browser',()=>{
   it.each([{...sale,lines:[{productId:7,quantity:2}]},{...sale,lines:[{productId:9,quantity:1}]},{...sale,discountCode:'promo-10'}])('invalidates quote for changed sale %j',async changed=>{
-    const x=setup();await x.flow.quote();x.flow.setSale(changed);await x.flow.confirm();expect(x.flow.read().quote).toBeNull();expect(x.api.confirmSale).not.toHaveBeenCalled();
+    const x=setup();await x.flow.quote();x.flow.acceptReview(true);x.flow.setSale(changed);await x.flow.confirm();expect(x.flow.read().quote).toBeNull();expect(x.api.confirmSale).not.toHaveBeenCalled();
   });
   it('discards a late quote after editing and removes old quote before a failed refresh',async()=>{
     const d=deferred(),x=setup();x.api.quoteSale.mockReturnValueOnce(d.promise);const work=x.flow.quote();x.flow.setSale({...sale,discountCode:'promo-10'});d.resolve(quote);await work;expect(x.flow.read().quote).toBeNull();
-    await x.flow.quote();x.api.quoteSale.mockRejectedValueOnce(new Error('internal trace'));await x.flow.quote();expect(x.flow.read().quote).toBeNull();expect(x.flow.read().error).not.toContain('internal trace');
+    await x.flow.quote();x.flow.acceptReview(true);x.api.quoteSale.mockRejectedValueOnce(new Error('internal trace'));await x.flow.quote();x.flow.acceptReview(true);expect(x.flow.read().quote).toBeNull();expect(x.flow.read().error).not.toContain('internal trace');
   });
   it('two UI confirm actions send once while in flight and confirm only with server evidence',async()=>{
-    const d=deferred(),x=setup();await x.flow.quote();x.api.confirmSale.mockReturnValue(d.promise);const first=x.flow.confirm();await x.flow.confirm();expect(x.api.confirmSale).toHaveBeenCalledTimes(1);expect(x.flow.read().busy).toBeTruthy();
+    const d=deferred(),x=setup();await x.flow.quote();x.flow.acceptReview(true);x.api.confirmSale.mockReturnValue(d.promise);const first=x.flow.confirm();await x.flow.confirm();expect(x.api.confirmSale).toHaveBeenCalledTimes(1);expect(x.flow.read().busy).toBeTruthy();
     const record={reference:'Odoo-reference',state:'paid'};d.resolve({status:'confirmed',sale:record});await first;expect(x.flow.read().detail).toBe(record);expect(x.confirmed).toHaveBeenCalledTimes(1);
   });
   it.each(['timeout','uncertain'])('never retries or announces paid after %s; reconciles with existing use case',async mode=>{
-    let pending=null;const x=setup({pendingSale:()=>pending,reconcileSale:vi.fn().mockResolvedValue({status:'uncertain'})});await x.flow.quote();
+    let pending=null;const x=setup({pendingSale:()=>pending,reconcileSale:vi.fn().mockResolvedValue({status:'uncertain'})});await x.flow.quote();x.flow.acceptReview(true);
     x.api.confirmSale.mockImplementation(async()=>{pending={operationId:'stable'};if(mode==='timeout')throw new Error('timeout');return {status:'uncertain'};});
     await x.flow.confirm();await x.flow.confirm();expect(x.api.confirmSale).toHaveBeenCalledTimes(1);expect(x.flow.read().message+x.flow.read().error).not.toContain('paid');expect(x.flow.read().pending.operationId).toBe('stable');expect(x.confirmed).not.toHaveBeenCalled();await x.flow.reconcile();expect(x.api.reconcileSale).toHaveBeenCalledTimes(1);
   });
   it.each(['session.not_open','products.not_found'])('provides actionable rejection for %s without success',async code=>{
-    const x=setup();await x.flow.quote();x.api.confirmSale.mockRejectedValue({status:422,code});await x.flow.confirm();expect(x.flow.read().error).toContain('cotizar');expect(x.flow.read().quote).toBeNull();expect(x.confirmed).not.toHaveBeenCalled();
+    const x=setup();await x.flow.quote();x.flow.acceptReview(true);x.api.confirmSale.mockRejectedValue({status:422,code});await x.flow.confirm();expect(x.flow.read().error).toContain('cotizar');expect(x.flow.read().quote).toBeNull();expect(x.confirmed).not.toHaveBeenCalled();
   });
   it('history and detail preserve API reference, amounts and state through navigation actions',async()=>{
     const record={id:42,reference:'Runtime sale',total:17.21,state:'done',currency:'EUR'};

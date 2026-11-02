@@ -25,7 +25,7 @@ describe('DEF-01 lexical rejection before changing the controlled value', () => 
 describe('DEF-02/03 exclusive view rendering',()=>{
   const render = initialView => renderToStaticMarkup(<PosPage initialView={initialView} useCases={{pendingSale:()=>null}} username="a" onLogout={()=>{}} />);
   it('history contains its action but excludes checkout and catalog controls',()=>{
-    const html=render('historial'); expect(html).toContain('Ver historial'); expect(html).not.toContain('Buscar productos'); expect(html).not.toContain('Consultar total con impuestos'); expect(html).not.toContain('No hay operaciones pendientes');
+    const html=render('historial'); expect(html).toContain('Cargando órdenes');expect(html).not.toContain('Ver historial'); expect(html).not.toContain('Buscar productos'); expect(html).not.toContain('Consultar total con impuestos'); expect(html).not.toContain('No hay operaciones pendientes');
   });
   it('pending view excludes history and checkout controls',()=>{
     const html=render('operaciones'); expect(html).toContain('No hay operaciones pendientes'); expect(html).not.toContain('Ver historial'); expect(html).not.toContain('Buscar productos'); expect(html).not.toContain('Consultar total con impuestos');
@@ -90,7 +90,7 @@ describe('invalid draft cannot contaminate a verified sale payload',()=>{
     const api={pendingSale:()=>null,activeSession:vi.fn().mockResolvedValue({id:3}),quoteSale:vi.fn().mockResolvedValue({sessionId:3,total:4,lines:[],methods:[{id:8,name:'Efectivo'}]}),confirmSale:vi.fn().mockResolvedValue({status:'uncertain'})};
     const flow=createSalesPresenter(api);const source=()=>({lines:cart.toRequestLines(),discountCode:'none'});flow.setSale(source());await flow.quote();const quote=flow.read().quote;
     const editor=createQuantityEditor(2,n=>{cart=cart.changeQuantity(7,n);flow.setSale(source());});editor.edit('2e3');editor.commit('2e3');
-    expect(cart).toBe(original);expect(cart.subtotal).toBe(4);expect(flow.read().quote).toBe(quote);await flow.confirm();
+    expect(cart).toBe(original);expect(cart.subtotal).toBe(4);expect(flow.read().quote).toBe(quote);flow.acceptReview(true);await flow.confirm();
     expect(api.confirmSale).toHaveBeenCalledWith({sessionId:3,lines:[{productId:7,quantity:2}],discountCode:'none'},8,4);
   });
 });

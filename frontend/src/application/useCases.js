@@ -1,3 +1,5 @@
+import { parseCatalogSearch } from './catalogSearch.js';
+
 // Casos de uso del frontend. Dependen de dos puertos que se inyectan desde fuera:
 //
 //   api     -> { login({username, password}), searchProducts(term), listDiscounts(), previewSale({lines, discountCode}) }
@@ -63,7 +65,7 @@ export function createUseCases({ api, session, pending }) {
     },
 
     searchProducts(term) {
-      return api.searchProducts((term ?? '').trim());
+      return api.searchProducts(parseCatalogSearch(term ?? ''));
     },
 
     listDiscounts() {

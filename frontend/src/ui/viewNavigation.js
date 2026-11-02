@@ -1,5 +1,5 @@
 // Minimal hash routing. Only presentation selection changes; cart/checkout stay in the parent.
-export const viewFromHash = hash => ['venta', 'historial', 'operaciones'].includes(hash?.replace(/^#/, ''))
+export const viewFromHash = hash => ['venta', 'cobro', 'historial', 'operaciones'].includes(hash?.replace(/^#/, ''))
   ? hash.replace(/^#/, '') : 'venta';
 export function createViewNavigation(port) {
   return {

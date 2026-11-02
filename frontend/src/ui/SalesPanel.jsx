@@ -1,20 +1,19 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { createSalesPresenter, saleKey } from './salesPresenter.js';
+import { HistoryView, QuoteReview, VerifiedDetail } from './SalesViews.jsx';
+import { displayAmount } from './salesViewModel.js';
 
-function VerifiedDetail({ sale }) {
-  return <article aria-label={`Detalle ${sale.reference}`}>
-    <h3>Detalle {sale.reference}</h3>
-    <p>Resultado consultado en Odoo · Estado: <strong>{sale.state}</strong></p>
-    <dl className="totals"><dt>Importe registrado ({sale.currency})</dt><dd>{sale.total}</dd>
-      <dt>Impuestos</dt><dd>{sale.tax}</dd><dt>Pagado</dt><dd>{sale.paid}</dd></dl>
-    <ul>{sale.lines.map((line, i) => <li key={i}>Producto {line.productId}: {line.quantity} × {line.unitPrice}; descuento {line.discountPercent}%; neto {line.net}; impuesto {line.tax}</li>)}</ul>
-    <p>Métodos registrados: {sale.methods.map(method => method.name).join(', ') || 'No informados'}</p>
-  </article>;
+function OperationMessage({ state }) {
+  if (!state.busy && !state.message && !state.error) return null;
+  const title = { confirmed: 'Operación confirmada', uncertain: 'Resultado incierto', rejected: 'Operación rechazada', error: 'Consulta no disponible', idle: 'Procesando' }[state.outcome];
+  return <div className={`notice notice-${state.busy ? 'info' : state.outcome}`} role={state.error ? 'alert' : 'status'} aria-live="polite">
+    <strong>{state.busy ? state.busy : title}</strong>
+    {!state.busy && <p>{state.error || state.message}</p>}
+    {!state.busy && state.outcome === 'uncertain' && <a href="#operaciones">Consultar la operación pendiente</a>}
+    {!state.busy && state.resultSale && <p className="result-amount">{state.resultSale.reference} · {displayAmount(state.resultSale.total, state.resultSale.currency)}</p>}
+  </div>;
 }
-
-export default function SalesPanel({ useCases, cart, discountCode, onLockChange, onConfirmed, view = 'venta' }) {
-  const title = useRef(null);
-  useEffect(() => { title.current?.focus(); }, [view]);
+export default function SalesPanel({ useCases, cart, discountCode, onLockChange, onConfirmed, onContinue, view = 'venta' }) {
   const confirmed = useRef(onConfirmed);
   confirmed.current = onConfirmed;
   const presenter = useMemo(() => createSalesPresenter(useCases, () => confirmed.current()), [useCases]);
@@ -22,46 +21,56 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
   const sale = { lines: cart.toRequestLines(), discountCode };
   const key = saleKey(sale);
   useEffect(() => { presenter.setSale({ lines: cart.toRequestLines(), discountCode }); }, [presenter, cart, discountCode]);
+  useEffect(() => { presenter.enterView(view); }, [presenter, view]);
   useEffect(() => { onLockChange(!!state.busy || !!state.pending); }, [state.busy, state.pending, onLockChange]);
   const quote = state.key === key ? state.quote : null;
   const syncSale = action => { presenter.setSale(sale); return action(); };
-  return <section className="card sales-panel" aria-labelledby="sales-title">
-    <h2 id="sales-title" ref={title} tabIndex="-1">{{ venta: 'Cobro · efectivo exacto', historial: 'Historial de ventas', operaciones: 'Operaciones pendientes' }[view]}</h2>
-    {view === 'venta' && <section aria-labelledby="checkout-title">{state.pending && <p role="status">Hay una operación pendiente. <a href="#operaciones">Consultar resultado antes de cobrar</a>.</p>}<h3 id="checkout-title">Revisión y pago en efectivo</h3>
-      <button disabled={!!state.busy || !!state.pending || cart.isEmpty} onClick={() => syncSale(presenter.quote)}>Consultar total con impuestos</button>
-      {!quote && <p className="muted">No hay cotización vigente. Consulte el importe antes de confirmar.</p>}
-      {quote && <div>
-        <p>Total verificado por API: <strong>{quote.total} {quote.currency}</strong>. Cobro únicamente en efectivo exacto, sin vuelto.</p>
-        <div className="ticket" aria-label="Ticket de revisión">
-          <h4>Revisión antes de confirmar</h4>
-          <ul>{quote.lines.map(line => <li key={line.productId}><strong>Producto {line.productId}</strong><span>{line.quantity} × {line.unitPrice} · descuento {line.discountPercent}%</span><span>Neto {line.net} · impuesto {line.tax}</span></li>)}</ul>
-          <p>Importe verificado: <strong>{quote.total} {quote.currency}</strong></p>
-        </div>
-        <label>Método configurado (efectivo)
-          <select disabled={!!state.busy || !!state.pending} value={state.method} onChange={e => presenter.selectMethod(e.target.value)}>
-            {quote.methods.map(method => <option key={method.id} value={method.id}>{method.name}</option>)}
+
+  if (view === 'venta') return <div className="sale-next">
+    <OperationMessage state={state} />
+    {state.pending && <div className="notice notice-uncertain" role="status">Hay una operación pendiente. <a href="#operaciones">Consulta su resultado antes de cobrar otra vez.</a></div>}
+    {state.notice && <p className="notice notice-warning" role="status">{state.notice}</p>}
+    <div className="action-bar"><div><strong>Siguiente paso: revisar y cobrar</strong><p className="hint">Consulta el total final y confirma únicamente el efectivo exacto.</p></div>
+      <button type="button" disabled={!!state.busy || !!state.pending || cart.isEmpty} onClick={onContinue}>Revisar y continuar a cobro <span aria-hidden="true">→</span></button></div>
+  </div>;
+
+  return <div className="sales-content">
+    <OperationMessage state={state} />
+    {view === 'cobro' && <>
+      <div className="checkout-toolbar"><a href="#venta" className="back-link">← Volver a venta</a>
+        <button type="button" className="secondary" disabled={!!state.busy || !!state.pending || cart.isEmpty} onClick={() => syncSale(presenter.quote)}>Consultar total con impuestos</button></div>
+      {state.pending && <div className="notice notice-uncertain" role="status">Hay un cobro con resultado pendiente. <a href="#operaciones">Consultar antes de realizar otra operación</a>.</div>}
+      {state.notice && <p className="notice notice-warning" role="status">{state.notice}</p>}
+      {!quote && !state.busy && <div className="card empty-state"><strong>{cart.isEmpty ? 'No hay productos para cotizar' : 'No hay cotización vigente'}</strong>
+        <p>{cart.isEmpty ? 'Regresa a Venta para preparar el carrito.' : 'Consulta el total con impuestos antes de confirmar. Una cotización anterior no autoriza un nuevo cobro.'}</p></div>}
+      {quote && <div className="checkout-columns">
+        <QuoteReview quote={quote} cart={cart} />
+        <section className="card payment-panel" aria-labelledby="payment-title"><p className="eyebrow">Paso final</p><h2 id="payment-title">Efectivo exacto</h2>
+          <p className="hint">Solo se admite efectivo por el importe verificado. No se registra vuelto.</p>
+          <label htmlFor="cash-method">Método de pago configurado</label>
+          <select id="cash-method" disabled={!!state.busy || !!state.pending} value={state.method} onChange={e => presenter.selectMethod(e.target.value)}>
+            {quote.methods.map(method => <option key={method.id} value={method.id}>{method.name} (importe exacto)</option>)}
           </select>
-        </label>
-        {!quote.methods.length && <p role="alert">No hay método de efectivo disponible. Revise la configuración de la sesión POS.</p>}
-        <button disabled={!!state.busy || !!state.pending || !state.method} onClick={() => syncSale(presenter.confirm)}>Confirmar venta y efectivo</button>
+          {!quote.methods.length && <p className="error" role="alert">No hay método de efectivo disponible. Revise la sesión POS.</p>}
+          <div className="payment-total"><span>Importe a registrar</span><strong>{displayAmount(quote.total, quote.currency)}</strong></div>
+          <label className="check-label"><input type="checkbox" checked={state.reviewAccepted} disabled={!!state.busy || !!state.pending}
+            onChange={e => presenter.acceptReview(e.target.checked)} /><span>He revisado los productos y el importe de efectivo exacto.</span></label>
+          <button type="button" className="confirm-button" disabled={!!state.busy || !!state.pending || !state.method || !state.reviewAccepted}
+            onClick={() => syncSale(presenter.confirm)}>Confirmar venta y efectivo</button>
+          <p className="hint">La venta solo se mostrará confirmada después de verificar el resultado en Odoo.</p>
+        </section>
       </div>}
+      {state.resultSale && <div className="card"><VerifiedDetail sale={state.resultSale} /></div>}
+    </>}
+    {view === 'historial' && <HistoryView state={state} onRetry={() => presenter.history()} onDetail={presenter.detail}
+      onNext={() => presenter.history(state.history.at(-1).id)} />}
+    {view === 'operaciones' && <section className="card pending-panel" aria-label="Consulta de resultados inciertos">
+      <p className="eyebrow">Consulta y conciliación</p>
+      {state.pending ? <><h2>Una operación necesita verificación</h2><p>Conserva este identificador. No repitas el cobro ni generes una venta nueva para resolverlo.</p>
+        <p className="operation-id">{state.pending.operationId}</p>
+        <button type="button" disabled={!!state.busy} onClick={presenter.reconcile}>Consultar operación pendiente</button></>
+        : <div className="empty-state"><h2>No hay operaciones pendientes</h2><p>No hay resultados inciertos guardados para este operador.</p><a href="#venta">Volver a venta</a></div>}
+      {state.resultSale && <VerifiedDetail sale={state.resultSale} />}
     </section>}
-    <p role="status" aria-live="polite">{state.busy || state.message}</p>
-    {state.error && <p className="error" role="alert">{state.error}</p>}
-    {view === 'operaciones' && <section id="operaciones" tabIndex="-1" aria-labelledby="pending-title"><h3 id="pending-title">Operaciones pendientes</h3>
-      {state.pending ? <><p>Operación pendiente: <span className="operation-id">{state.pending.operationId}</span>. No vuelva a cobrar.</p>
-        <button disabled={!!state.busy} onClick={presenter.reconcile}>Consultar operación pendiente</button></> : <p>No hay operaciones pendientes para este operador.</p>}
-    </section>}
-    {view === 'historial' && <section id="historial" tabIndex="-1" aria-labelledby="history-title"><h3 id="history-title">Historial</h3>
-      <button disabled={!!state.busy} onClick={() => presenter.history()}>Ver historial</button>
-      {state.historyLoaded && !state.history.length && <p>No hay ventas en esta página.</p>}
-      <ul className="sales-history">{state.history.map(sale => <li key={sale.id}>
-        <p><strong>{sale.reference}</strong> · {sale.total} {sale.currency} · Estado Odoo: {sale.state}</p>
-        <button disabled={!!state.busy} onClick={() => presenter.detail(sale.id)}>Ver detalle de {sale.reference}</button>
-      </li>)}</ul>
-      {state.history.length === 20 && <button disabled={!!state.busy} onClick={() => presenter.history(state.history.at(-1).id)}>Página siguiente</button>}
-      {state.detail && <VerifiedDetail sale={state.detail} />}
-    </section>}
-    {view !== 'historial' && state.resultSale && <VerifiedDetail sale={state.resultSale} />}
-  </section>;
+  </div>;
 }
