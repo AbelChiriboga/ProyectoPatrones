@@ -1,35 +1,31 @@
 # Seguimiento SDD semana 3
 - Fecha: 2026-11-02, America/Guayaquil.
-- Fase: SDD-03.4-B, calidad y fallos verificados por terminal; validación visual a cargo del usuario.
+- Fase: SDD-03.4-C implementada; aceptación visual A pendiente del usuario.
 - Rama: semana3-ventas; base: 9c84c3e3230d58ff74cbf241a5d8d94a187ddca7.
-- Odoo 20.0-20261015 en proyecto Docker aislado patrones-semana3.
-- Host 127.0.0.1:8069; base pos_db; configuración 1; sesión abierta 1.
-- Admin y gestor de bases aleatorios; API key/JWT/operador en archivos locales ignorados.
-- scripts/prepare-week3.py: inicialización segura sin HTTP y puerto host loopback.
-- Contrato sync_from_ui(orders) inspeccionado en código de imagen instalada.
-- `dotnet build backend/PosOdoo.slnx --no-restore`: 0 errores, 0 advertencias.
-- `python scripts/verify-week3.py --write`: carga entorno y ejecuta suite .NET + P09.
-- Suite .NET: 76 unitarias y 4 integraciones reales aprobadas; 0 fallidas/omitidas.
-- `npm test` en frontend: 74 aprobadas en 7 archivos; 0 fallidas.
-- `npm run build` en frontend: correcto.
-- P09: orden 2, Caja Principal - 000001, paid, efectivo 2,76 USD, IVA 0,36.
-- UUID P09: 0f21ba7c-8be1-4ed2-a053-4cf4132e4064; conteo tras repetición = 1.
-- Evidencia: docs/evidencias/semana3-p09.json (orden, líneas, pago e historial/detalle).
-- Primer intento rechazado 422 por redondeo global; conteo 0, nunca reenviado.
-- Evidencia rechazada preservada: docs/evidencias/semana3-p09-rejected.json.
-- Contratos finales y límites documentados en especificacion.md sección 10.
-- Idempotencia: claim exclusivo durable, SHA-256/operador, resultado atómico.
-- Timeout/reinicio: consultar UUID, nunca reenviar comandos ni marcar éxito sin pago.
-- Decisiones: Adapter/puertos; diario en filesystem sin paquetes; Strategy reutilizado.
-- Impuestos simples excluidos, moneda de centavos, efectivo exacto; configuración compleja rechazada.
-- UI conectada: cotización, efectivo, confirmación, operación pendiente, historial y detalle.
-- Riesgos: diario de un host debe conservarse; claims incompletos requieren revisión manual.
-- No probado: interfaz en navegador y venta real adicional con descuentos.
-- Bloqueos externos actuales: ninguno para el flujo simple validado.
-- main intacto; cuatro commits de consolidación conservados; sin push/merge; servicios intactos.
-- Próximo: revisión y demostración visual; semana 4 refactorización y defensa.
-- SDD-03.2: Vite 5173 apuntaba a otra copia; reiniciado desde este repo. Texto obsoleto corregido; 35 React/76 .NET aprobadas, build y HTTP de semana 3 correctos. Sin ventas nuevas; validación visual a cargo del usuario. Política permanente en AGENTS.md.
-- SDD-03.4: cantidades transitorias, quote vigente, revisión de efectivo, fallos/conciliación, historial y navegación; matriz código/prueba/manual en especificacion.md.
-- Regresión actual: React 74, .NET 76 + 4 integraciones de lectura y lanzador 6 aprobadas; 0 fallidas/omitidas. Builds correctos, .NET en artefactos temporales por DLL activos. Sin ventas nuevas.
-- SDD-03.4-B: DEF-01 gramática/Enter/blur/entero seguro; DEF-02/03 vistas excluyentes con carrito preservado y ticket. 15 regresiones fallaban antes; ahora pasan; 23 casos nuevos.
-- Manual pendiente: teclado/pegado, navegación atrás/retorno, foco y ticket; no confirmar ventas. Sin cambios de Odoo/secretos ni dependencias nuevas; detalle histórico separado del resultado de cobro.
+- Baseline antes de C: f16fc72; ocho commits locales anteriores preservados.
+- Fuente A: HTML aportado, template extraído estáticamente sin ejecutar scripts.
+- UI: fondo claro, paneles blancos/radio 14px, azul #0b5cab, controles 44px y dos columnas.
+- Navegación: 1 Venta → 2 Cobro; Historial/Pendientes independientes; carrito preservado.
+- DEF-04: consulta Unicode imprimible hasta 100 UTF-16, sin controles/solo símbolos.
+- Búsqueda rechazada conserva texto válido; no llama HTTP con entrada inválida.
+- DEF-05: sin latch de rechazo; cantidad restaurada informa sin marcar inválido el valor correcto.
+- Cantidad: draft separado, Enter/blur/IME, +/- según dominio y stock; sin máximo comercial nuevo.
+- DEF-06: historial automático con carga/vacío/error/retry y detalle real; sin Ver historial.
+- DEF-07: ticket/revisión API y efectivo exacto; checkbox deliberado antes de confirmar.
+- Cotización/revisión invalidadas por producto/cantidad/descuento; doble envío bloqueado.
+- Incertidumbre conserva identidad durable y exige consulta; sin reenvío automático.
+- Regresiones previas: se mantienen, adaptadas al nuevo paso y revisión explícita.
+- `guided.test.jsx` antes: 6 fallidas; después todas aprobadas (DEF-07 estructural, no visual).
+- `npm --prefix frontend test`: 108 aprobadas en 9 archivos; 0 fallidas/omitidas.
+- `npm --prefix frontend run build`: correcto.
+- `dotnet build backend/PosOdoo.slnx --artifacts-path <temporal>`: 0 errores/advertencias.
+- `dotnet test backend/PosOdoo.slnx --artifacts-path <misma temporal> --no-build --no-restore`:
+- Resultado .NET: 76 unitarias + 4 integraciones Odoo de solo lectura aprobadas; 0 fallidas/omitidas.
+- `python -B scripts/test_run_week3.py`: 6 aprobadas; 0 fallidas/omitidas.
+- Vite PosPage HTTP 200 y paso #cobro presente; API5038/Vite5173 activos sin reinicio.
+- Backend, Odoo, secretos y AGENTS.md sin cambios; no nuevas ventas ni dependencias.
+- P09 histórico: docs/evidencias/semana3-p09.json; no repetido en esta fase.
+- Matriz y guía manual de ocho casos en especificacion.md sección SDD-03.4-C.
+- Excluidos: pagos nuevos/vuelto, clientes, inventario, facturas, reportes y conexión ficticia.
+- Sin navegador/GUI ni afirmación de validación visual. Main intacto; sin push/merge.
+- Riesgos: aceptación visual/teclado pendiente; diario local de un host conserva límites previos.
