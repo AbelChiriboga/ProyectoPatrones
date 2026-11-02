@@ -1,53 +1,60 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { createSalesPresenter, saleKey } from './salesPresenter.js';
+
+function VerifiedDetail({ sale }) {
+  return <article aria-label={`Detalle ${sale.reference}`}>
+    <h3>Detalle {sale.reference}</h3>
+    <p>Resultado consultado en Odoo · Estado: <strong>{sale.state}</strong></p>
+    <dl className="totals"><dt>Importe registrado ({sale.currency})</dt><dd>{sale.total}</dd>
+      <dt>Impuestos</dt><dd>{sale.tax}</dd><dt>Pagado</dt><dd>{sale.paid}</dd></dl>
+    <ul>{sale.lines.map((line, i) => <li key={i}>Producto {line.productId}: {line.quantity} × {line.unitPrice}; descuento {line.discountPercent}%; neto {line.net}; impuesto {line.tax}</li>)}</ul>
+    <p>Métodos registrados: {sale.methods.map(method => method.name).join(', ') || 'No informados'}</p>
+  </article>;
+}
 
 export default function SalesPanel({ useCases, cart, discountCode, onLockChange, onConfirmed }) {
-  const [quote, setQuote] = useState(null);
-  const [method, setMethod] = useState('');
-  const [message, setMessage] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState(() => useCases.pendingSale());
-  const [history, setHistory] = useState([]);
-  const [detail, setDetail] = useState(null);
-  const locked = useRef(false);
-  useEffect(() => { onLockChange(busy || !!pending); }, [busy, pending, onLockChange]);
-  useEffect(() => { setQuote(null); }, [cart, discountCode]);
-  const run = async (action) => {
-    if (locked.current) return;
-    locked.current = true; setBusy(true); setMessage('');
-    try { await action(); } catch (e) { setMessage(e.message); }
-    finally { setPending(useCases.pendingSale()); locked.current = false; setBusy(false); }
-  };
-  const showResult = (result) => {
-    if (result.status === 'confirmed') {
-      setMessage(`Venta ${result.sale.reference} confirmada por Odoo (${result.sale.state}). Total ${result.sale.total} ${result.sale.currency}.`);
-      setDetail(result.sale); setQuote(null); onConfirmed();
-    } else setMessage('Resultado incierto. No vuelva a cobrar: consulte el estado de esta operación.');
-  };
-  return <section className="card">
-    <h2>Cobro e historial</h2>
-    {pending && <p role="status">Operación pendiente: {pending.operationId}. Conserve este identificador.</p>}
-    <button disabled={busy || !!pending || cart.isEmpty} onClick={() => run(async () => {
-      const session = await useCases.activeSession();
-      const result = await useCases.quoteSale({ sessionId: session.id, lines: cart.toRequestLines(), discountCode });
-      setQuote(result); setMethod(String(result.methods[0]?.id ?? ''));
-    })}>Consultar total con impuestos</button>
-    {quote && <div>
-      <p>Total a cobrar: <strong>{quote.total} {quote.currency}</strong> (efectivo exacto).</p>
-      <label>Método de pago <select disabled={busy || !!pending} value={method} onChange={e => setMethod(e.target.value)}>
-        {quote.methods.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-      </select></label>
-      <button disabled={busy || !!pending || !method} onClick={() => run(async () => showResult(await useCases.confirmSale(
-        { sessionId: quote.sessionId, lines: cart.toRequestLines(), discountCode }, Number(method), quote.total
-      )))}>Confirmar venta y efectivo</button>
-    </div>}
-    {pending && <button disabled={busy} onClick={() => run(async () => showResult(await useCases.reconcileSale()))}>Consultar operación pendiente</button>}
-    <p role="status" aria-live="polite">{busy ? 'Consultando…' : message}</p>
-    <button disabled={busy} onClick={() => run(async () => { setHistory(await useCases.salesHistory(0)); setDetail(null); })}>Ver historial</button>
-    <ul>{history.map(s => <li key={s.id}><button disabled={busy} onClick={() => run(async () => setDetail(await useCases.saleDetail(s.id)))}>{s.reference} · {s.total} {s.currency} · {s.state}</button></li>)}</ul>
-    {history.length === 20 && <button disabled={busy} onClick={() => run(async () => setHistory(await useCases.salesHistory(history.at(-1).id)))}>Página siguiente</button>}
-    {detail && <article><h3>Detalle {detail.reference}</h3><p>Estado Odoo: {detail.state}; total: {detail.total} {detail.currency}; impuesto: {detail.tax}; pagado: {detail.paid}</p>
-      <ul>{detail.lines.map((l,i) => <li key={i}>Producto {l.productId}: {l.quantity} × {l.unitPrice}; descuento {l.discountPercent}%; neto {l.net}; impuesto {l.tax}</li>)}</ul>
-      <p>Métodos: {detail.methods.map(m => m.name).join(', ')}</p>
-    </article>}
+  const confirmed = useRef(onConfirmed);
+  confirmed.current = onConfirmed;
+  const presenter = useMemo(() => createSalesPresenter(useCases, () => confirmed.current()), [useCases]);
+  const state = useSyncExternalStore(presenter.subscribe, presenter.read, presenter.read);
+  const sale = { lines: cart.toRequestLines(), discountCode };
+  const key = saleKey(sale);
+  useEffect(() => { presenter.setSale({ lines: cart.toRequestLines(), discountCode }); }, [presenter, cart, discountCode]);
+  useEffect(() => { onLockChange(!!state.busy || !!state.pending); }, [state.busy, state.pending, onLockChange]);
+  const quote = state.key === key ? state.quote : null;
+  const syncSale = action => { presenter.setSale(sale); return action(); };
+  return <section className="card sales-panel" aria-labelledby="sales-title">
+    <h2 id="sales-title">Cobro e historial</h2>
+    <section aria-labelledby="checkout-title"><h3 id="checkout-title">Revisión y pago en efectivo</h3>
+      <button disabled={!!state.busy || !!state.pending || cart.isEmpty} onClick={() => syncSale(presenter.quote)}>Consultar total con impuestos</button>
+      {!quote && <p className="muted">No hay cotización vigente. Consulte el importe antes de confirmar.</p>}
+      {quote && <div>
+        <p>Total verificado por API: <strong>{quote.total} {quote.currency}</strong>. Cobro únicamente en efectivo exacto, sin vuelto.</p>
+        <ul>{quote.lines.map(line => <li key={line.productId}>Producto {line.productId}: {line.quantity} × {line.unitPrice}; descuento {line.discountPercent}%; neto {line.net}; impuestos {line.tax}</li>)}</ul>
+        <label>Método configurado (efectivo)
+          <select disabled={!!state.busy || !!state.pending} value={state.method} onChange={e => presenter.selectMethod(e.target.value)}>
+            {quote.methods.map(method => <option key={method.id} value={method.id}>{method.name}</option>)}
+          </select>
+        </label>
+        {!quote.methods.length && <p role="alert">No hay método de efectivo disponible. Revise la configuración de la sesión POS.</p>}
+        <button disabled={!!state.busy || !!state.pending || !state.method} onClick={() => syncSale(presenter.confirm)}>Confirmar venta y efectivo</button>
+      </div>}
+    </section>
+    <p role="status" aria-live="polite">{state.busy || state.message}</p>
+    {state.error && <p className="error" role="alert">{state.error}</p>}
+    <section id="operaciones" tabIndex="-1" aria-labelledby="pending-title"><h3 id="pending-title">Operaciones pendientes</h3>
+      {state.pending ? <><p>Operación pendiente: <span className="operation-id">{state.pending.operationId}</span>. No vuelva a cobrar.</p>
+        <button disabled={!!state.busy} onClick={presenter.reconcile}>Consultar operación pendiente</button></> : <p>No hay operaciones pendientes para este operador.</p>}
+    </section>
+    <section id="historial" tabIndex="-1" aria-labelledby="history-title"><h3 id="history-title">Historial</h3>
+      <button disabled={!!state.busy} onClick={() => presenter.history()}>Ver historial</button>
+      {state.historyLoaded && !state.history.length && <p>No hay ventas en esta página.</p>}
+      <ul className="sales-history">{state.history.map(sale => <li key={sale.id}>
+        <p><strong>{sale.reference}</strong> · {sale.total} {sale.currency} · Estado Odoo: {sale.state}</p>
+        <button disabled={!!state.busy} onClick={() => presenter.detail(sale.id)}>Ver detalle de {sale.reference}</button>
+      </li>)}</ul>
+      {state.history.length === 20 && <button disabled={!!state.busy} onClick={() => presenter.history(state.history.at(-1).id)}>Página siguiente</button>}
+      {state.detail && <VerifiedDetail sale={state.detail} />}
+    </section>
   </section>;
 }

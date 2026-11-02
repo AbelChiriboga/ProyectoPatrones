@@ -74,3 +74,20 @@ ul { list-style: none; margin: 0; padding: 0; }
 @media (max-width: 720px) {
   .layout { grid-template-columns: 1fr; }
 }
+
+/* Functional navigation and keyboard visibility; no new visual framework. */
+.areas { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 1rem; }
+.areas a { color: var(--primary); }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.card { min-width: 0; }
+.sales-panel { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.sales-panel section { margin-top: 1rem; }
+.sales-history li { border-top: 1px solid var(--border); padding: 0.75rem 0; }
+.quantity-editor .error { font-size: 0.8rem; grid-column: 1 / -1; }
+.quantity-editor { min-width: 0; }
+.cart li:has(.quantity-editor .error) { grid-template-columns: minmax(0, 1fr) minmax(5rem, 2fr) auto auto; }
+button { white-space: normal; }
+@media (max-width: 480px) {
+  .topbar { flex-wrap: wrap; }
+  .cart li, .cart li:has(.quantity-editor .error) { grid-template-columns: minmax(0, 1fr) auto; }
+}

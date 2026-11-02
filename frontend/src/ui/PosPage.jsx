@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Cart, lineSubtotal } from '../domain/cart.js';
 import SalesPanel from './SalesPanel.jsx';
+import QuantityInput from './QuantityInput.jsx';
 
 const money = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 
@@ -73,6 +74,16 @@ export default function PosPage({ useCases, username, onLogout }) {
     }
   };
 
+  const commitQuantity = useCallback((id, quantity) => {
+    const current = cart.lines.find(line => line.productId === id);
+    if (current.quantity === quantity) return;
+    const updated = useCases.changeQuantity(cart, id, quantity);
+    setCart(updated);
+  }, [cart, useCases]);
+  const quantityCallbacks = useMemo(() => new Map(cart.lines.map(line =>
+    [line.productId, quantity => commitQuantity(line.productId, quantity)])), [cart, commitQuantity]);
+  const commitQuantityFor = id => quantityCallbacks.get(id);
+
   return (
     <div className="layout">
       <header className="topbar">
@@ -81,11 +92,13 @@ export default function PosPage({ useCases, username, onLogout }) {
         <button className="link" onClick={onLogout}>Cerrar sesión</button>
       </header>
 
+      <nav className="areas" aria-label="Áreas del POS"><a href="#venta">Venta</a><a href="#historial">Historial</a><a href="#operaciones">Operaciones pendientes</a></nav>
       <fieldset disabled={checkoutLocked} style={{ display: 'contents' }}>
-      <section className="card">
-        <h2>Catálogo</h2>
+      <section className="card" id="venta" tabIndex="-1">
+        <h2>Venta · Catálogo</h2>
         <input
           type="search"
+          aria-label="Buscar productos"
           placeholder="Buscar por nombre o código…"
           value={term}
           onChange={(e) => setTerm(e.target.value)}
@@ -123,13 +136,7 @@ export default function PosPage({ useCases, username, onLogout }) {
                 <strong>{line.name}</strong>
                 <span className="muted">{money.format(line.unitPrice)} c/u</span>
               </div>
-              <input
-                type="number"
-                min="1"
-                aria-label={`Cantidad de ${line.name}`}
-                value={line.quantity}
-                onChange={(e) => updateCart(() => useCases.changeQuantity(cart, line.productId, e.target.valueAsNumber))}
-              />
+              <QuantityInput line={line} onCommit={commitQuantityFor(line.productId)} />
               <span className="price">{money.format(lineSubtotal(line))}</span>
               <button className="danger" onClick={() => updateCart(() => useCases.removeFromCart(cart, line.productId))}>
                 Quitar
