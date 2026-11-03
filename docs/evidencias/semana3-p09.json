@@ -1,0 +1,217 @@
+{
+  "host": "http://127.0.0.1:8069",
+  "database": "pos_db",
+  "sessionId": 1,
+  "request": {
+    "operationId": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+    "sale": {
+      "sessionId": 1,
+      "lines": [
+        {
+          "productId": 3,
+          "quantity": 1
+        },
+        {
+          "productId": 6,
+          "quantity": 1
+        }
+      ],
+      "discountCode": "none"
+    },
+    "paymentMethodId": 1,
+    "expectedTotal": 2.76
+  },
+  "result": {
+    "operationId": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+    "status": "confirmed",
+    "sale": {
+      "id": 2,
+      "uuid": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+      "reference": "Caja Principal - 000001",
+      "state": "paid",
+      "currency": "USD",
+      "total": 2.76,
+      "tax": 0.36,
+      "paid": 2.76,
+      "sessionId": 1,
+      "lines": [
+        {
+          "productId": 6,
+          "quantity": 1,
+          "unitPrice": 0.9,
+          "discountPercent": 0.0,
+          "net": 0.9,
+          "tax": 0.13,
+          "taxIds": [
+            1
+          ]
+        },
+        {
+          "productId": 3,
+          "quantity": 1,
+          "unitPrice": 1.5,
+          "discountPercent": 0.0,
+          "net": 1.5,
+          "tax": 0.23,
+          "taxIds": [
+            1
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "id": 1,
+          "name": "Efectivo"
+        }
+      ]
+    }
+  },
+  "repeatResult": {
+    "operationId": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+    "status": "confirmed",
+    "sale": {
+      "id": 2,
+      "uuid": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+      "reference": "Caja Principal - 000001",
+      "state": "paid",
+      "currency": "USD",
+      "total": 2.76,
+      "tax": 0.36,
+      "paid": 2.76,
+      "sessionId": 1,
+      "lines": [
+        {
+          "productId": 6,
+          "quantity": 1,
+          "unitPrice": 0.9,
+          "discountPercent": 0.0,
+          "net": 0.9,
+          "tax": 0.13,
+          "taxIds": [
+            1
+          ]
+        },
+        {
+          "productId": 3,
+          "quantity": 1,
+          "unitPrice": 1.5,
+          "discountPercent": 0.0,
+          "net": 1.5,
+          "tax": 0.23,
+          "taxIds": [
+            1
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "id": 1,
+          "name": "Efectivo"
+        }
+      ]
+    }
+  },
+  "detail": {
+    "id": 2,
+    "uuid": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+    "reference": "Caja Principal - 000001",
+    "state": "paid",
+    "currency": "USD",
+    "total": 2.76,
+    "tax": 0.36,
+    "paid": 2.76,
+    "sessionId": 1,
+    "lines": [
+      {
+        "productId": 6,
+        "quantity": 1,
+        "unitPrice": 0.9,
+        "discountPercent": 0.0,
+        "net": 0.9,
+        "tax": 0.13,
+        "taxIds": [
+          1
+        ]
+      },
+      {
+        "productId": 3,
+        "quantity": 1,
+        "unitPrice": 1.5,
+        "discountPercent": 0.0,
+        "net": 1.5,
+        "tax": 0.23,
+        "taxIds": [
+          1
+        ]
+      }
+    ],
+    "methods": [
+      {
+        "id": 1,
+        "name": "Efectivo"
+      }
+    ]
+  },
+  "uuidCount": 1,
+  "historyContainsSale": true,
+  "verifiedUtc": "2026-11-02T02:23:02Z",
+  "odooReadback": {
+    "pos.order": [
+      {
+        "id": 2,
+        "uuid": "0f21ba7c-8be1-4ed2-a053-4cf4132e4064",
+        "state": "paid",
+        "amount_total": 2.76,
+        "amount_tax": 0.36,
+        "amount_paid": 2.76,
+        "session_id": [
+          1,
+          "Caja Principal/00001"
+        ],
+        "lines": [
+          3,
+          4
+        ],
+        "payment_ids": [
+          2
+        ]
+      }
+    ],
+    "pos.order.line": [
+      {
+        "id": 3,
+        "product_id": [
+          3,
+          "[CAFE-001] Caf\u00e9 americano"
+        ],
+        "qty": 1.0,
+        "price_unit": 1.5,
+        "discount": 0.0,
+        "price_subtotal": 1.5,
+        "price_subtotal_incl": 1.73
+      },
+      {
+        "id": 4,
+        "product_id": [
+          6,
+          "[GALL-001] Galletas de avena"
+        ],
+        "qty": 1.0,
+        "price_unit": 0.9,
+        "discount": 0.0,
+        "price_subtotal": 0.9,
+        "price_subtotal_incl": 1.03
+      }
+    ],
+    "pos.payment": [
+      {
+        "id": 2,
+        "payment_method_id": [
+          1,
+          "Efectivo"
+        ],
+        "amount": 2.76
+      }
+    ]
+  }
+}

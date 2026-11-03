@@ -73,4 +73,26 @@ public sealed class OdooIntegrationTests
         Assert.Equal(PosSessionState.Opened, session.State);
         Assert.NotEmpty(session.PaymentMethodIds);
     }
+    [OdooFact]
+    public async Task Reads_bounded_history_pages_and_reference_search_without_writing_orders()
+    {
+        var (client, options) = Connect();
+        var session = await new OdooPosSessionGateway(client, options).FindActiveAsync(CancellationToken.None);
+        Assert.NotNull(session);
+        options.Value.PosConfigId = session.ConfigId;
+        var reader = new OdooSaleGateway(client, options);
+        var page = await reader.SearchAsync(new("", 0, 1), CancellationToken.None);
+        Assert.True(page.Items.Count <= 1);
+        foreach (var item in page.Items) {
+            Assert.True(item.Id > 0); Assert.False(string.IsNullOrWhiteSpace(item.Reference));
+            Assert.NotNull(item.DateUtc);
+            var found = await reader.SearchAsync(new(item.Reference, 0, 20), CancellationToken.None);
+            Assert.Contains(found.Items, row => row.Id == item.Id);
+        }
+        if (page.HasMore) {
+            Assert.NotNull(page.NextBeforeId);
+            var next = await reader.SearchAsync(new("", page.NextBeforeId.Value, 1), CancellationToken.None);
+            Assert.All(next.Items, row => Assert.True(row.Id < page.NextBeforeId.Value));
+        }
+    }
 }

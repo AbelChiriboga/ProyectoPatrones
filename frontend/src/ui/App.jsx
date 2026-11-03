@@ -4,6 +4,7 @@ import { createBrowserSession } from '../infrastructure/browserSession.js';
 import { createHttpPosApi } from '../infrastructure/httpPosApi.js';
 import LoginPage from './LoginPage.jsx';
 import PosPage from './PosPage.jsx';
+import { createPendingSale } from '../infrastructure/pendingSale.js';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5038';
 
@@ -21,7 +22,7 @@ export default function App() {
         setUsername(null);
       },
     });
-    return createUseCases({ api, session });
+    return createUseCases({ api, session, pending: createPendingSale() });
   }, [session]);
 
   const handleLogout = () => {

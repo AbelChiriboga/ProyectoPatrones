@@ -15,6 +15,7 @@ public sealed class PosExceptionHandler(IProblemDetailsService problemDetails, I
     {
         var (status, code, title) = exception switch
         {
+            Pos.Application.Sales.SaleConflictException e => (StatusCodes.Status409Conflict, e.Code, "Conflicto de operación"),
             ValidationException e => (StatusCodes.Status400BadRequest, e.Code, "Datos inválidos"),
             DomainException e => (StatusCodes.Status422UnprocessableEntity, e.Code, "Regla de negocio incumplida"),
             NotFoundException e => (StatusCodes.Status404NotFound, e.Code, "Recurso no encontrado"),

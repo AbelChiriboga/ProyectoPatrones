@@ -15,7 +15,7 @@ const toCents = (amount) => Math.round(amount * 100);
 export const lineSubtotal = (line) => (toCents(line.unitPrice) * line.quantity) / 100;
 
 function assertValidQuantity(quantity) {
-  if (!Number.isInteger(quantity) || quantity <= 0) {
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
     throw new CartError('cart.invalid_quantity', 'La cantidad debe ser un número entero mayor que cero.');
   }
 }
