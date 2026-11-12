@@ -1,3 +1,6 @@
+import { parseCatalogSearch } from './catalogSearch.js';
+import { parseHistorySearch } from './historyQuery.js';
+
 // Casos de uso del frontend. Dependen de dos puertos que se inyectan desde fuera:
 //
 //   api     -> { login({username, password}), searchProducts(term), listDiscounts(), previewSale({lines, discountCode}) }
@@ -15,8 +18,42 @@ export class UseCaseError extends Error {
 
 const EMPTY_PREVIEW = Object.freeze({ lines: [], subtotal: 0, discountCode: 'none', discount: 0, total: 0 });
 
-export function createUseCases({ api, session }) {
+export function createUseCases({ api, session, pending }) {
   return {
+    activeSession: () => api.activeSession(),
+    quoteSale: (sale) => api.quoteSale(sale),
+    pendingSale: () => pending?.read(session.read()?.username),
+    async confirmSale(sale, paymentMethodId, expectedTotal) {
+      const owner = session.read()?.username;
+      if (pending.read(owner)) throw new UseCaseError('sale.pending', 'Consulte primero la operación pendiente.');
+      const request = { operationId: pending.newId(), sale, paymentMethodId, expectedTotal };
+      pending.save(owner, request);
+      try {
+        const result = await api.registerSale(request);
+        if (result.status === 'confirmed') pending.clear(owner);
+        return result;
+      } catch (error) {
+        // Only a definitive pre-send validation allows correcting the cart with a fresh identity.
+        if ([400, 401, 403, 404, 422].includes(error.status) || error.code === 'sale.total_changed') pending.clear(owner);
+        throw error;
+      }
+    },
+    async reconcileSale() {
+      const owner = session.read()?.username;
+      const request = pending.read(owner);
+      if (!request) throw new UseCaseError('sale.no_pending', 'No hay operación pendiente.');
+      const result = await api.saleOperation(request.operationId);
+      if (result.status === 'confirmed') pending.clear(owner);
+      return result;
+    },
+    salesHistoryPage({ search = '', beforeId = 0, limit = 20 } = {}) {
+      const term = parseHistorySearch(search);
+      if (!Number.isInteger(beforeId) || beforeId < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100)
+        throw new UseCaseError('history.pagination', 'Paginación inválida.');
+      return api.salesHistoryPage({ search: term, beforeId, limit });
+    },
+    salesHistory: (beforeId) => api.salesHistory(beforeId),
+    saleDetail: (id) => api.saleDetail(id),
     currentUser() {
       return session.read()?.username ?? null;
     },
@@ -35,7 +72,7 @@ export function createUseCases({ api, session }) {
     },
 
     searchProducts(term) {
-      return api.searchProducts((term ?? '').trim());
+      return api.searchProducts(parseCatalogSearch(term ?? ''));
     },
 
     listDiscounts() {

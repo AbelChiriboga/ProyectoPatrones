@@ -1,0 +1,33 @@
+{
+  "host": "http://localhost:8069",
+  "database": "pos_db",
+  "sessionId": 1,
+  "request": {
+    "operationId": "91b6fd6c-6845-4182-9b1f-deac3d268cc3",
+    "sale": {
+      "sessionId": 1,
+      "lines": [
+        {
+          "productId": 3,
+          "quantity": 1
+        },
+        {
+          "productId": 6,
+          "quantity": 1
+        }
+      ],
+      "discountCode": "none"
+    },
+    "paymentMethodId": 1,
+    "expectedTotal": 2.77
+  },
+  "result": {
+    "operationId": "91b6fd6c-6845-4182-9b1f-deac3d268cc3",
+    "status": "uncertain",
+    "sale": null
+  },
+  "definitiveRejectionHttp": 422,
+  "rejectionMessage": "Order / is not fully paid.",
+  "reconciledUuidCount": 0,
+  "cause": "Company uses round_globally; initial quote incorrectly rounded per line. No order persisted; no re-send of this operation."
+}
