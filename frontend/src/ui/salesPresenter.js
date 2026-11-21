@@ -1,4 +1,9 @@
 import { parseHistorySearch } from '../application/historyQuery.js';
+import {
+  UNCERTAIN_SALE_MESSAGE,
+  classifySaleOutcome,
+  mapSaleFailureMessage,
+} from './salesErrors.js';
 
 // Observable UI state; use cases own API contracts, persistence and idempotency.
 export const saleKey = sale => JSON.stringify(sale);
@@ -11,23 +16,13 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
     pending: useCases.pendingSale(), history: [], historyLoaded: false, historyStatus: 'idle', historyError: '', historyTerm: '', historySearchError: '', historyQuery: '', historyCursors: [0], historyIndex: 0, historyHasMore: false, historyNextBeforeId: null, detail: null, detailOpen: false, detailId: null, detailStatus: 'idle', detailError: '', resultSale: null };
   const listeners = new Set();
   const patch = changes => { state = { ...state, ...changes }; listeners.forEach(fn => fn()); };
-  const uncertain = 'Resultado incierto. No vuelva a cobrar; consulte la operación pendiente con el mismo identificador.';
-  function failure(error, readOnly = false) {
-    if (!readOnly && useCases.pendingSale()) return uncertain;
-    if (error.code?.startsWith('session.')) return 'La sesión POS no está abierta o cambió. Solicite abrir la caja y vuelva a cotizar.';
-    if (error.code?.startsWith('products.')) return 'Producto no disponible para el POS. Revise el carrito y vuelva a cotizar.';
-    if (error.code === 'sale.total_changed') return 'El total cambió. Consulte una nueva cotización antes de cobrar.';
-    if (error.status === 401) return 'Inicie sesión nuevamente para continuar.';
-    if (error.status === 422 || error.status === 400) return 'La operación fue rechazada por datos inválidos. Revise cantidades, descuento y método; vuelva a cotizar.';
-    return 'No se pudo obtener un resultado verificado. Revise la conexión y consulte nuevamente; no repita un cobro pendiente.';
-  }
   async function run(action, work, readOnly = false) {
     if (state.busy) return false;
     patch({ busy: action, error: '', message: '', outcome: 'idle' });
     try { await work(); }
     catch (error) {
-      patch({ error: failure(error, readOnly), outcome: !readOnly && useCases.pendingSale() ? 'uncertain'
-        : [400, 409, 422].includes(error.status) || error.code?.startsWith('session.') || error.code?.startsWith('products.') ? 'rejected' : 'error' });
+      const ctx = { readOnly, hasPending: Boolean(useCases.pendingSale()) };
+      patch({ error: mapSaleFailureMessage(error, ctx), outcome: classifySaleOutcome(error, ctx) });
     } finally { patch({ busy: '', pending: useCases.pendingSale() }); }
     return true;
   }
@@ -36,7 +31,7 @@ export function createSalesPresenter(useCases, onConfirmed = () => {}) {
       patch({ resultSale: value.sale, quote: null, reviewAccepted: false, outcome: 'confirmed',
         message: `Venta ${value.sale.reference} confirmada por Odoo (${value.sale.state}).` });
       onConfirmed();
-    } else patch({ quote: null, reviewAccepted: false, resultSale: null, outcome: 'uncertain', message: uncertain });
+    } else patch({ quote: null, reviewAccepted: false, resultSale: null, outcome: 'uncertain', message: UNCERTAIN_SALE_MESSAGE });
   }
   function closeDetail() {
     detailGeneration += 1;
