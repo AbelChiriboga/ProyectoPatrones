@@ -1,29 +1,30 @@
-# POS integrado con Odoo 20 Community — Semana 3
+# POS integrado con Odoo 20 Community — Entrega Final (Semana 4)
 
-Rama de entrega: `semana3-ventas`. Implementa ventas, efectivo exacto, conciliación, historial con búsqueda dinámica/paginación en servidor y detalle, conservando catálogo, carrito y descuentos. El frontend obtiene los datos por la API .NET; nunca recibe la API key de Odoo.
+Sistema POS web con Clean Architecture en **React + ASP.NET Core (.NET 10)** integrado con **Odoo 20 Community** vía JSON-2. Implementa catálogo real, carrito editable, descuentos por política, cotización fiscal, cobro en efectivo exacto, idempotencia durable, conciliación, historial paginado con búsqueda y detalle de orden. El frontend obtiene todos los datos a través de la API .NET y nunca recibe la API key de Odoo.
 
 ```text
 React → ASP.NET Core (.NET 10) → Odoo 20 Community (JSON-2) → PostgreSQL
 ```
 
-Alcance: efectivo por el total verificado, sin tarjetas, transferencias ni vuelto. No incluye inventario integral, clientes, facturación o reportes nuevos. La publicación no ejecuta por sí misma ninguna venta.
+Documentos clave de Semana 4:
+- [Decisiones de Diseño](docs/DECISIONES_DISENO.md)
+- [Matriz de Trazabilidad Final](docs/MATRIZ_TRAZABILIDAD.md)
+
+Alcance: efectivo por el total verificado, sin tarjetas, transferencias ni vuelto. No incluye inventario integral, clientes, facturación o reportes nuevos.
 
 ## 1. Prerrequisitos y carpeta correcta
 
 - Git; .NET SDK 10; Python 3; Node.js y npm compatibles con el lockfile y Vite del proyecto.
 - Docker Desktop con motor iniciado y Docker Compose con soporte para la etiqueta `!override` usada por el preparador.
-- PowerShell para los comandos de esta guía. Git Bash no es necesario para el arranque actual.
+- PowerShell para los comandos de esta guía.
 - Puertos habituales: Odoo 8069, API 5038 y React 5173.
 
-Todos los comandos parten de la raíz **ProyectoPatrones** de la copia de semana 3. En el equipo de desarrollo:
+Todos los comandos parten de la raíz del repositorio clonado (`ProyectoPatrones` o la carpeta local elegida):
 
 ```powershell
-Set-Location 'C:\Users\User OGX\Documents\04_Universidad\patrones_software\patrones-software-semana3\ProyectoPatrones'
 git rev-parse --show-toplevel
 git branch --show-current
 ```
-
-Otro integrante debe usar la ruta de su clon y comprobar la rama `semana3-ventas`. No usar la copia antigua ubicada fuera de `patrones-software-semana3`.
 
 ## 2. Preparación inicial — solo instancia nueva y aislada
 
@@ -203,7 +204,7 @@ Las integraciones de `backend/tests/Pos.IntegrationTests` son de lectura. Para e
 
 `scripts/verify-week3.py` es una herramienta de verificación controlada, no el lanzador habitual: ejecuta pruebas, inicia otra API en 5049 y escribe un log local. Su entorno prioriza el respaldo local al actualizar las variables directamente; **no tiene la misma precedencia que run-week3.py**. No ejecutarlo junto a instancias/compilaciones incompatibles. No usar `--write` sin autorización explícita: puede enviar POST de venta y modificar evidencia. Para leer P09 existente basta consultar los documentos y endpoints GET autorizados.
 
-Resultados **de la auditoría AUD-03-FINAL del 2026-11-02**, no nuevas ejecuciones atribuibles a esta guía: 138 React, 89 unitarias .NET, 5 integraciones reales de lectura y 6 del lanzador = **238 aprobadas**, builds correctos. La reevaluación documental y su alcance están al final de [la auditoría](docs/sdd/semana3/AUDITORIA_CIERRE_SEMANA3.md). La validación visual corresponde al usuario; el agente no usa navegador.
+Resultados verificados en Semana 4 (sin instancia Odoo activa en esta máquina): **91 unitarias .NET** (`Pos.UnitTests`), **138 React** (11 archivos Vitest) y **6 del lanzador Python** = **235 pruebas unitarias aprobadas**, más build frontend correcto. Las **5 pruebas de integración en `Pos.IntegrationTests` se omitieron** al no estar configurada `Odoo__ApiKey` ni Odoo activo. La validación visual en navegador corresponde al usuario.
 
 Todos los endpoints siguientes exigen JWT salvo login:
 
