@@ -15,7 +15,8 @@ public sealed class SearchSalesHistoryTests
     [Fact] public async Task Normalizes_search_without_fetching_unbounded_data() {
         var reader = new Reader();
         var page = await new SearchSalesHistoryUseCase(reader).ExecuteAsync(" Caja - 000002 ", 100, 20, default);
-        Assert.Equal(new SaleHistoryQuery("Caja - 000002",100,20),reader.Last);
+        // Owner es null porque usamos la sobrecarga legada (sin owner).
+        Assert.Equal(new SaleHistoryQuery("Caja - 000002",100,20,null),reader.Last);
         Assert.Empty(page.Items); Assert.False(page.HasMore);
     }
     [Theory][InlineData(-1,20)][InlineData(0,0)][InlineData(0,101)]

@@ -1,0 +1,27 @@
+# Entorno aislado para pruebas de carga y rendimiento (1,000,000 registros).
+# No altera ni comparte volumen, puerto ni datos con la instancia principal de desarrollo/producción.
+# Se ejecuta con: docker compose -p patrones-perf --env-file infra/.env.perf -f infra/docker-compose.perf.yml up -d
+services:
+  db-perf:
+    image: postgres:16
+    container_name: patrones-perf-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pos_perf_db}
+      POSTGRES_USER: ${POSTGRES_USER:-pos_perf}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-perf_secret_password}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pos-perf-db-data:/var/lib/postgresql/data
+      - ./perf/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    command: >
+      postgres
+        -c shared_buffers=256MB
+        -c work_mem=32MB
+        -c maintenance_work_mem=128MB
+        -c effective_cache_size=1GB
+        -c max_connections=50
+    restart: "no"
+
+volumes:
+  pos-perf-db-data:

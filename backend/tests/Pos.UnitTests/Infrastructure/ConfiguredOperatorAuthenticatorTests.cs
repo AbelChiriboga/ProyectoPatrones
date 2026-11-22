@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Pos.Application.Auth;
 using Pos.Infrastructure.Security;
 
 namespace Pos.UnitTests.Infrastructure;
@@ -9,7 +10,7 @@ public sealed class ConfiguredOperatorAuthenticatorTests
     {
         Operators =
         [
-            new OperatorCredential { Username = "cajero1", Password = "clave-segura" },
+            new OperatorCredential { Username = "cajero1", Password = "clave-segura", Role = OperatorRoles.Cashier },
             new OperatorCredential { Username = "sin-clave", Password = "" },
         ],
     }));

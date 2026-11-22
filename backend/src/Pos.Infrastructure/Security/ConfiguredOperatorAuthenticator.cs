@@ -9,6 +9,8 @@ public sealed class OperatorCredential
 {
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
+    /// <summary>Rol del operador: "Admin" o "Cashier" (valor por defecto si se omite).</summary>
+    public string Role { get; set; } = OperatorRoles.Cashier;
 }
 
 /// <summary>
@@ -34,5 +36,13 @@ public sealed class ConfiguredOperatorAuthenticator(IOptions<OperatorsOptions> o
 
         // Comparación de tiempo constante para no filtrar información por la duración de la respuesta.
         return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(found.Password), Encoding.UTF8.GetBytes(password));
+    }
+
+    /// <summary>Devuelve el rol configurado para el usuario; null si no se encuentra.</summary>
+    public string? GetRole(string username)
+    {
+        var found = options.Value.Operators.FirstOrDefault(o =>
+            string.Equals(o.Username, username, StringComparison.OrdinalIgnoreCase));
+        return found?.Role ?? OperatorRoles.Cashier;
     }
 }

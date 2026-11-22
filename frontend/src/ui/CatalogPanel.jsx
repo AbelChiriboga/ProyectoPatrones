@@ -4,6 +4,29 @@ const price = value => new Intl.NumberFormat('es-EC', { minimumFractionDigits: 2
 export default function CatalogPanel({ state, onSearch, onRetry, onAdd }) {
   const composing = useRef(false);
   const ready = state.status === 'ready';
+
+  const handleKeyDown = e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onSearch('');
+    } else if (e.key === 'Enter') {
+      if (!composing.current && !e.nativeEvent?.isComposing) {
+        if (state.products && state.products.length > 0) {
+          e.preventDefault();
+          const query = (state.term ?? '').trim().toLowerCase();
+          const exact = state.products.find(p => (p.code && p.code.toLowerCase() === query) || p.name.toLowerCase() === query)
+                        ?? state.products[0];
+          if (exact) {
+            onAdd(exact);
+            if (exact.code && exact.code.toLowerCase() === query) {
+              onSearch('');
+            }
+          }
+        }
+      }
+    }
+  };
+
   return <section className="card catalog-panel" aria-labelledby="catalog-title">
     <div className="panel-heading"><div><p className="eyebrow">Elige los productos</p><h2 id="catalog-title">Catálogo</h2></div></div>
     <label className="input-label" htmlFor="product-search">Buscar producto</label>
@@ -12,7 +35,8 @@ export default function CatalogPanel({ state, onSearch, onRetry, onAdd }) {
       aria-invalid={!!state.inputError} aria-describedby={`search-help${state.inputError ? ' search-error' : ''}`}
       onCompositionStart={() => { composing.current = true; }}
       onCompositionEnd={e => { composing.current = false; onSearch(e.currentTarget.value); }}
-      onChange={e => { if (!composing.current && !e.nativeEvent.isComposing) onSearch(e.target.value); }} />
+      onChange={e => { if (!composing.current && !e.nativeEvent.isComposing) onSearch(e.target.value); }}
+      onKeyDown={handleKeyDown} />
     <p className="hint" id="search-help">Nombre o código · Hasta 100 caracteres. Agrega con el botón de cada producto.</p>
     {state.inputError && <p className="error field-error" role="alert" id="search-error">{state.inputError} Se conserva la búsqueda válida anterior.</p>}
     {(state.status === 'idle' || state.status === 'loading') && !state.inputError && <p className="empty-state" role="status">Consultando catálogo…</p>}

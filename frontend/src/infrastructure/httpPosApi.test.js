@@ -60,4 +60,33 @@ describe('httpPosApi', () => {
 
     await expect(api.listDiscounts()).rejects.toMatchObject({ code: 'network.unavailable' });
   });
+
+  it('salesReport calls GET /api/reports/sales with no params when none given', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, { totalOrders: 5 }));
+    const { api } = setup(fetchFn);
+
+    const result = await api.salesReport();
+
+    const [url] = fetchFn.mock.calls[0];
+    expect(url).toBe('http://api.test/api/reports/sales');
+    expect(result.totalOrders).toBe(5);
+  });
+
+  it('salesReport appends date params when provided', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    const { api } = setup(fetchFn);
+
+    await api.salesReport({ from: '2026-01-01T00:00:00Z', to: '2026-12-31T23:59:59Z' });
+
+    const [url] = fetchFn.mock.calls[0];
+    expect(url).toContain('from=2026-01-01');
+    expect(url).toContain('to=2026-12-31');
+  });
+
+  it('salesReport returns 403 for Cashier role (unauthorized)', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse(403, { code: 'auth.forbidden', detail: 'Acceso denegado.' }));
+    const { api } = setup(fetchFn);
+
+    await expect(api.salesReport()).rejects.toMatchObject({ status: 403, code: 'auth.forbidden' });
+  });
 });

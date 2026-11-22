@@ -13,9 +13,9 @@ export function createBrowserSession() {
         return null;
       }
     },
-    save(token, username) {
+    save(token, username, role = 'Cashier') {
       try {
-        sessionStorage.setItem(KEY, JSON.stringify({ token, username }));
+        sessionStorage.setItem(KEY, JSON.stringify({ token, username, role }));
       } catch {
         // Sin storage la sesión solo dura mientras no se recargue la página.
       }

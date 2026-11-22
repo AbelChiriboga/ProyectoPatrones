@@ -8,11 +8,12 @@ public sealed class LoginUseCaseTests
     private sealed class FakeAuthenticator : IOperatorAuthenticator
     {
         public bool IsValid(string username, string password) => username == "cajero1" && password == "clave-segura";
+        public string? GetRole(string username) => username == "cajero1" ? OperatorRoles.Cashier : null;
     }
 
     private sealed class FakeTokenIssuer : ITokenIssuer
     {
-        public LoginResult Issue(string username) => new("token-de-prueba", DateTimeOffset.UnixEpoch, username);
+        public LoginResult Issue(string username, string role) => new("token-de-prueba", DateTimeOffset.UnixEpoch, username, role);
     }
 
     private static LoginUseCase CreateUseCase() => new(new FakeAuthenticator(), new FakeTokenIssuer());
@@ -24,6 +25,13 @@ public sealed class LoginUseCaseTests
 
         Assert.Equal("token-de-prueba", result.Token);
         Assert.Equal("cajero1", result.Username);
+    }
+
+    [Fact]
+    public void Valid_credentials_include_role_in_result()
+    {
+        var result = CreateUseCase().Execute(new LoginRequest("cajero1", "clave-segura"));
+        Assert.Equal(OperatorRoles.Cashier, result.Role);
     }
 
     [Fact]

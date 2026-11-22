@@ -6,17 +6,19 @@ namespace Pos.Application.Auth;
 public interface IOperatorAuthenticator
 {
     bool IsValid(string username, string password);
+    /// <summary>Devuelve el rol del operador autenticado; null si el usuario no existe.</summary>
+    string? GetRole(string username);
 }
 
 /// <summary>Puerto de salida: emite el token de acceso del operador.</summary>
 public interface ITokenIssuer
 {
-    LoginResult Issue(string username);
+    LoginResult Issue(string username, string role);
 }
 
 public sealed record LoginRequest(string? Username, string? Password);
 
-public sealed record LoginResult(string Token, DateTimeOffset ExpiresAt, string Username);
+public sealed record LoginResult(string Token, DateTimeOffset ExpiresAt, string Username, string Role);
 
 /// <summary>Autenticación del operador: POST /api/auth/login.</summary>
 public sealed class LoginUseCase(IOperatorAuthenticator authenticator, ITokenIssuer tokens)
@@ -30,6 +32,7 @@ public sealed class LoginUseCase(IOperatorAuthenticator authenticator, ITokenIss
         if (!authenticator.IsValid(username, request.Password))
             throw new AuthenticationFailedException("auth.invalid_credentials", "Usuario o contraseña incorrectos.");
 
-        return tokens.Issue(username);
+        var role = authenticator.GetRole(username) ?? OperatorRoles.Cashier;
+        return tokens.Issue(username, role);
     }
 }

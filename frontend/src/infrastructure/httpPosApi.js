@@ -53,5 +53,12 @@ export function createHttpPosApi({ baseUrl, getToken, onUnauthorized, fetchFn = 
     searchProducts: (term) => request(`/api/products?search=${encodeURIComponent(term)}`),
     listDiscounts: () => request('/api/discounts'),
     previewSale: (sale) => request('/api/sales/preview', { method: 'POST', body: sale }),
+    salesReport: ({ from, to } = {}) => {
+      const params = new URLSearchParams();
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const qs = params.toString();
+      return request(`/api/reports/sales${qs ? '?' + qs : ''}`);
+    },
   };
 }

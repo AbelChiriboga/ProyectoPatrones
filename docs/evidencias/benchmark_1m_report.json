@@ -1,0 +1,157 @@
+{
+  "timestamp": "2026-11-22T18:50:50.226576Z",
+  "dataset_rows": {
+    "products": 1000000,
+    "customers": 1000000,
+    "sales": 1000000,
+    "sale_lines": 1000000,
+    "payments": 1000000,
+    "total_records": 5000000
+  },
+  "seeding_times_seconds": {
+    "products": 27.69,
+    "customers": 36.12,
+    "sales_lines_payments": 110.05,
+    "total": 174.05
+  },
+  "execution_plans": {
+    "catalog_search": {
+      "before": "SCAN products | USE TEMP B-TREE FOR ORDER BY",
+      "after": "SEARCH products USING INDEX idx_products_pos_search (sale_ok=? AND available_in_pos=?)"
+    },
+    "cashier_history_keyset": {
+      "before": "SEARCH sales USING INTEGER PRIMARY KEY (rowid<?)",
+      "after": "SEARCH sales USING INDEX idx_sales_cashier_history_keyset (config_id=? AND user_id=? AND id<?)"
+    },
+    "sales_report_cashier": {
+      "before": "SCAN sales | USE TEMP B-TREE FOR GROUP BY",
+      "after": "SEARCH sales USING COVERING INDEX idx_sales_reports_date (config_id=? AND date_order>? AND date_order<?) | USE TEMP B-TREE FOR GROUP BY"
+    },
+    "sales_report_payments": {
+      "after": "SEARCH s USING COVERING INDEX idx_sales_reports_date (config_id=? AND date_order>? AND date_order<?) | SEARCH p USING INDEX idx_payments_order_method (pos_order_id=?) | USE TEMP B-TREE FOR GROUP BY | USE TEMP B-TREE FOR ORDER BY"
+    }
+  },
+  "benchmarks_ms": {
+    "catalog_search": {
+      "min_ms": 614.166,
+      "avg_ms": 742.733,
+      "max_ms": 929.263,
+      "p95_ms": 929.263,
+      "row_count": 20,
+      "sample": [
+        [
+          10,
+          "PROD-0000010",
+          "Café producto especial #10",
+          4.0,
+          110.0
+        ],
+        [
+          100010,
+          "PROD-0100010",
+          "Café producto especial #100010",
+          4.0,
+          110.0
+        ],
+        [
+          100020,
+          "PROD-0100020",
+          "Café producto especial #100020",
+          6.5,
+          120.0
+        ]
+      ]
+    },
+    "cashier_history_keyset": {
+      "min_ms": 0.788,
+      "avg_ms": 1.041,
+      "max_ms": 1.341,
+      "p95_ms": 1.341,
+      "row_count": 20,
+      "sample": [
+        [
+          499996,
+          "POS/0499996",
+          "2026-05-25 16:11:40",
+          120.75,
+          "paid"
+        ],
+        [
+          499991,
+          "POS/0499991",
+          "2026-05-25 16:09:35",
+          113.56,
+          "paid"
+        ],
+        [
+          499986,
+          "POS/0499986",
+          "2026-05-25 16:07:30",
+          106.38,
+          "paid"
+        ]
+      ]
+    },
+    "cashier_history_offset_high": {
+      "min_ms": 74.401,
+      "avg_ms": 102.862,
+      "max_ms": 138.578,
+      "p95_ms": 138.578,
+      "row_count": 0,
+      "sample": []
+    },
+    "sales_report_cashier": {
+      "min_ms": 287.15,
+      "avg_ms": 346.576,
+      "max_ms": 433.676,
+      "p95_ms": 433.676,
+      "row_count": 5,
+      "sample": [
+        [
+          1,
+          21427,
+          1401599.87
+        ],
+        [
+          2,
+          21427,
+          1432401.19
+        ],
+        [
+          3,
+          21427,
+          1463202.5
+        ]
+      ]
+    },
+    "sales_report_payments": {
+      "min_ms": 631.918,
+      "avg_ms": 743.44,
+      "max_ms": 832.0,
+      "p95_ms": 832.0,
+      "row_count": 3,
+      "sample": [
+        [
+          1,
+          "Efectivo",
+          35712,
+          2438736.0
+        ],
+        [
+          2,
+          "Tarjeta de Débito",
+          35712,
+          2438667.0
+        ],
+        [
+          3,
+          "Transferencia",
+          35712,
+          2438713.0
+        ]
+      ]
+    }
+  },
+  "threshold_ms": 3000.0,
+  "status": "PASSED"
+}

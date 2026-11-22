@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createSalesPresenter, saleKey } from './salesPresenter.js';
 import { HistoryView, QuoteReview, VerifiedDetail } from './SalesViews.jsx';
 import { displayAmount } from './salesViewModel.js';
@@ -13,11 +13,13 @@ function OperationMessage({ state }) {
     {!state.busy && state.resultSale && <p className="result-amount">{state.resultSale.reference} · {displayAmount(state.resultSale.total, state.resultSale.currency)}</p>}
   </div>;
 }
-export default function SalesPanel({ useCases, cart, discountCode, onLockChange, onConfirmed, onContinue, view = 'venta' }) {
+
+export default function SalesPanel({ useCases, cart, discountCode, onLockChange, onConfirmed, onContinue, view = 'venta', presenter: externalPresenter }) {
   const confirmed = useRef(onConfirmed);
   confirmed.current = onConfirmed;
-  const presenter = useMemo(() => createSalesPresenter(useCases, () => confirmed.current()), [useCases]);
-  useEffect(() => () => presenter.dispose(), [presenter]);
+  const internalPresenter = useMemo(() => createSalesPresenter(useCases, () => confirmed.current()), [useCases]);
+  const presenter = externalPresenter ?? internalPresenter;
+  useEffect(() => () => presenter.dispose?.(), [presenter]);
   const state = useSyncExternalStore(presenter.subscribe, presenter.read, presenter.read);
   const sale = { lines: cart.toRequestLines(), discountCode };
   const key = saleKey(sale);
@@ -26,6 +28,44 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
   useEffect(() => { onLockChange(!!state.busy || !!state.pending); }, [state.busy, state.pending, onLockChange]);
   const quote = state.key === key ? state.quote : null;
   const syncSale = action => { presenter.setSale(sale); return action(); };
+
+  // Cálculo reactivo de efectivo recibido y vuelto en tiempo real (tipo Odoo POS)
+  const [tenderedAmount, setTenderedAmount] = useState('');
+  useEffect(() => {
+    if (quote?.total != null) {
+      setTenderedAmount(quote.total.toFixed(2));
+    }
+  }, [quote?.total]);
+
+  const tenderedNum = parseFloat(tenderedAmount) || 0;
+  const totalDue = quote?.total ?? 0;
+  const changeDue = Math.round((tenderedNum - totalDue) * 100) / 100;
+  const isTenderedSufficient = tenderedNum >= totalDue && totalDue > 0;
+
+  // Detección de conectividad para cola resiliente ante caídas temporales de Odoo
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (state.pending) presenter.reconcile();
+    };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [state.pending, presenter]);
+
+  const handlePaymentKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      if (!state.busy && !state.pending && state.method && state.reviewAccepted && isTenderedSufficient) {
+        e.preventDefault();
+        syncSale(presenter.confirm);
+      }
+    }
+  };
 
   if (view === 'venta') return <div className="sale-next">
     <OperationMessage state={state} />
@@ -37,6 +77,7 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
 
   return <div className="sales-content">
     <OperationMessage state={state} />
+    {!isOnline && <div className="notice notice-warning" role="status">Modo sin conexión. La sincronización se reanudará automáticamente al recuperar red.</div>}
     {view === 'cobro' && <>
       <div className="checkout-toolbar"><a href="#venta" className="back-link">← Volver a venta</a>
         <button type="button" className="secondary" disabled={!!state.busy || !!state.pending || cart.isEmpty} onClick={() => syncSale(presenter.quote)}>Consultar total con impuestos</button></div>
@@ -54,9 +95,44 @@ export default function SalesPanel({ useCases, cart, discountCode, onLockChange,
           </select>
           {!quote.methods.length && <p className="error" role="alert">No hay método de efectivo disponible. Revise la sesión POS.</p>}
           <div className="payment-total"><span>Importe a registrar</span><strong>{displayAmount(quote.total, quote.currency)}</strong></div>
+
+          {/* Desglose reactivo de efectivo y vuelto en tiempo real */}
+          <div className="tendered-calculator">
+            <label htmlFor="tendered-amount">Efectivo recibido del cliente ({quote.currency})</label>
+            <div className="tendered-input-row">
+              <input id="tendered-amount" type="number" step="0.01" min="0"
+                disabled={!!state.busy || !!state.pending}
+                value={tenderedAmount}
+                onChange={e => setTenderedAmount(e.target.value)}
+                onKeyDown={handlePaymentKeyDown} />
+              <button type="button" className="secondary quick-cash-btn" title="Pagar monto exacto"
+                onClick={() => setTenderedAmount(quote.total.toFixed(2))}>Exacto</button>
+            </div>
+            <div className="quick-denominations">
+              {[5, 10, 20, 50, 100].filter(d => d >= quote.total || d === 10 || d === 20).map(amount => (
+                <button key={amount} type="button" className="secondary bill-btn"
+                  disabled={!!state.busy || !!state.pending}
+                  onClick={() => setTenderedAmount(amount.toFixed(2))}>${amount}</button>
+              ))}
+            </div>
+            <div className="change-indicator" aria-live="polite">
+              {changeDue >= 0 ? (
+                <div className="change-positive">
+                  <span>Vuelto a entregar:</span>
+                  <strong>{displayAmount(changeDue, quote.currency)}</strong>
+                </div>
+              ) : (
+                <div className="change-negative" role="alert">
+                  <span>Monto insuficiente. Faltan:</span>
+                  <strong>{displayAmount(Math.abs(changeDue), quote.currency)}</strong>
+                </div>
+              )}
+            </div>
+          </div>
+
           <label className="check-label"><input type="checkbox" checked={state.reviewAccepted} disabled={!!state.busy || !!state.pending}
             onChange={e => presenter.acceptReview(e.target.checked)} /><span>He revisado los productos y el importe de efectivo exacto.</span></label>
-          <button type="button" className="confirm-button" disabled={!!state.busy || !!state.pending || !state.method || !state.reviewAccepted}
+          <button type="button" className="confirm-button" disabled={!!state.busy || !!state.pending || !state.method || !state.reviewAccepted || !isTenderedSufficient}
             onClick={() => syncSale(presenter.confirm)}>Confirmar venta y efectivo</button>
           <p className="hint">La venta solo se mostrará confirmada después de verificar el resultado en Odoo.</p>
         </section>

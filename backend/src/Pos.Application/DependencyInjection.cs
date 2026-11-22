@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Pos.Application.Auth;
 using Pos.Application.Catalog;
 using Pos.Application.Discounts;
+using Pos.Application.Reports;
 using Pos.Application.Sales;
 using Pos.Application.Sessions;
 using Pos.Domain.Discounts;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<SearchSalesHistoryUseCase>();
         services.AddScoped<ListDiscountsUseCase>();
         services.AddScoped<LoginUseCase>();
+        services.AddScoped<GetSalesReportUseCase>();
         return services;
     }
 }

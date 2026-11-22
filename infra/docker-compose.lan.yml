@@ -1,0 +1,49 @@
+# Despliegue completo en red local (Odoo 20 Community + PostgreSQL + Backend .NET 10)
+# Permite levantar todos los servicios escuchando en 0.0.0.0 para acceso desde cualquier PC en LAN.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambiar-esta-clave}
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  odoo:
+    image: odoo:20.0
+    depends_on:
+      - db
+    ports:
+      - "0.0.0.0:8069:8069"
+    environment:
+      HOST: db
+      USER: ${POSTGRES_USER:-odoo}
+      PASSWORD: ${POSTGRES_PASSWORD:-cambiar-esta-clave}
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    depends_on:
+      - odoo
+    ports:
+      - "0.0.0.0:5038:5038"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:5038
+      Odoo__BaseUrl: http://odoo:8069
+      Odoo__Database: pos_db
+      Odoo__ApiKey: ${ODOO_API_KEY:-}
+      Jwt__Key: ${JWT_KEY:-super-secret-jwt-key-with-minimum-32-chars!}
+      Cors__AllowLan: "true"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+    restart: unless-stopped
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:

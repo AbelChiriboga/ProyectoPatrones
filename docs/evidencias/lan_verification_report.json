@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-11-22T20:20:36.236617+00:00",
+  "server_ip": "127.0.0.1",
+  "client_ip": "192.168.1.100",
+  "ports": {
+    "Backend API": {
+      "status": "FAIL",
+      "open": false,
+      "latency_ms": 2058.45,
+      "error": "[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión"
+    },
+    "Frontend UI": {
+      "status": "FAIL",
+      "open": false,
+      "latency_ms": 2014.72,
+      "error": "[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión"
+    },
+    "Odoo POS": {
+      "status": "FAIL",
+      "open": false,
+      "latency_ms": 2040.88,
+      "error": "[WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión"
+    }
+  },
+  "http_checks": {
+    "openapi_spec": {
+      "status": "FAIL",
+      "http_status": 0,
+      "latency_ms": 4129.1,
+      "headers": {},
+      "body_snippet": "",
+      "error": "<urlopen error [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión>"
+    },
+    "api_versioning": {
+      "status": "FAIL",
+      "http_status": 0,
+      "latency_ms": 2047.99,
+      "headers": {},
+      "body_snippet": "",
+      "error": "<urlopen error [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión>"
+    },
+    "cors_preflight": {
+      "status": "FAIL",
+      "http_status": 0,
+      "latency_ms": 2047.51,
+      "headers": {},
+      "body_snippet": "",
+      "error": "<urlopen error [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión>",
+      "cors_passed": false,
+      "allow_origin_header": ""
+    },
+    "frontend_ui": {
+      "status": "FAIL",
+      "http_status": 0,
+      "latency_ms": 2041.5,
+      "headers": {},
+      "body_snippet": "",
+      "error": "<urlopen error [WinError 10061] No se puede establecer una conexión ya que el equipo de destino denegó expresamente dicha conexión>"
+    }
+  },
+  "overall_status": "FAIL"
+}

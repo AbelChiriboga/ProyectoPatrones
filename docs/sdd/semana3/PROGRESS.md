@@ -1,32 +1,26 @@
 # Seguimiento SDD semana 3
-- Fecha: 2026-11-02, America/Guayaquil.
-- Fase: SDD-03.5-B implementada y verificada por terminal; aceptación manual pendiente.
-- Rama: semana3-ventas; base: 9c84c3e3230d58ff74cbf241a5d8d94a187ddca7.
-- Baseline: f31fba0; diez commits locales anteriores preservados, sin reescribir fechas.
-- Diseño A y entradas: aceptación previa reportada por el usuario, sin verificación visual de Codex.
-- Causas: navegación poco visible, historial legacy con N+1, detalle inline y Quitar inmediato.
-- RF-04/15: confirmación de quitar en modal reutilizable; negocio sigue en Cart/casos de uso.
-- Cancelar preserva identidad de carrito/quote; confirmar quita solo el seleccionado e invalida quote.
-- Bloqueo síncrono de confirmación duplicada/reentrante y de edición durante operación crítica.
-- RF-13/14: GET /api/sales/history aditivo, búsqueda remota y cursores; legacy intacto.
-- Una consulta pos.order/search_read: ámbito POS, proyección cabeceras, limit+1, sin N+1.
-- B: búsqueda automática con debounce 300 ms, reset de cursores y limpieza; endpoint/tamaño 20 intactos.
-- B: invalidación inmediata de respuestas antiguas, tabla retenida durante carga; modal intacto.
-- Dialog compartido: foco seguro, Tab/Shift+Tab, restauración y scroll interno; sin cierre exterior.
-- Escape solo cierra/cancela; controles y ARIA verificados con SSR/puertos de foco, sin navegador.
-- Navegación Venta/Historial/Pendientes visible/activa; 1 Venta → 2 Cobro y carrito conservados.
-- Reglas de cobro, impuestos, descuentos e idempotencia sin cambios; sin ventas nuevas.
-- `npm --prefix frontend test`: 138 aprobadas en 11 archivos; 0 fallidas/omitidas.
-- `npm --prefix frontend run build`: correcto.
-- `dotnet build backend/PosOdoo.slnx --artifacts-path <temporal>`: 0 errores/advertencias.
-- `dotnet test backend/PosOdoo.slnx --artifacts-path <misma temporal> --no-build --no-restore`:
-- Regresión B .NET: 89 unitarias aprobadas, 0 fallidas/omitidas; 5 integraciones son evidencia previa SDD-03.5.
-- `python -B scripts/test_run_week3.py`: 6 aprobadas; 0 fallidas/omitidas.
-- HTTP real API5038: login/historial/búsqueda/fecha/cursor/detalle/legacy 200; inválidos 400; sin JWT 401.
-- API5038 reiniciada solo en este repo para cargar ruta nueva; Vite5173 sirve módulo actualizado (200).
-- Secretos, datos Odoo y AGENTS.md sin cambios; sin dependencias nuevas ni POST /api/sales.
-- P09 histórico: docs/evidencias/semana3-p09.json; no repetido en esta fase.
-- Matriz/guía: especificacion.md SDD-03.5 y B; 7 casos nuevos con reloj falso, sin navegador.
-- Excluidos: pagos nuevos/vuelto, clientes, inventario, facturas, reportes y conexión ficticia.
-- Sin navegador/GUI ni afirmación de validación visual. Main intacto; sin push/merge.
-- Pendientes: foco/scroll nativos, teclado, anchuras y diseño manual; diario local conserva límites previos.
+- Fecha: 2026-11-22, America/Guayaquil.
+- Fase: Cierre Integral de Calidad y Matriz de Trazabilidad Final.
+- Rama: main; contratos y endpoints preexistentes preservados de forma retrocompatible y aditiva.
+- Pruebas E2E: ampliadas en ApiContractTests (28 pruebas) con flujo completo de venta, idempotencia y descuentos.
+- POS Odoo Ágil: búsqueda instantánea con debounce y caché local en memoria (`catalogPresenter`).
+- Atajos y Código de Barras: `Enter` añade coincidencia exacta; `Esc` cancela búsqueda o vuelve a venta.
+- Carrito y Cliente: tag reactivo, selector de cliente y botones de incremento rápido (+1, +5).
+- Descuentos y Totales: Strategy GoF preservado; desglose provisional y cotización oficial con impuestos en Odoo.
+- Cobro y Vuelto: calculadora reactiva de efectivo y vuelto en tiempo real; botones de billetes y Exacto.
+- Resiliencia Odoo: idempotencia verificada; diario durable (.claim) y reconciliación de dos fases.
+- LAN Kestrel/Vite: escucha en 0.0.0.0:5038 y 0.0.0.0:5173; CORS dinámico para subredes privadas RFC 1918.
+- Frontend dinámico: resolveApiBaseUrl() infiere hostname en LAN o lee VITE_API_URL sin hardcodear localhost.
+- Scripts/Guía LAN: detect_lan_ip.py, verify_lan.py, start_lan.ps1 y docs/GUIA_DESPLIEGUE_LAN.md.
+- Versionamiento y Swagger: dual /api/v1/... y /api/... con OpenAPI 3.0, Bearer JWT, XML docs y ApiContractTests.
+- Auth JWT y Roles: claims Admin/Cashier, historial filtrado por cajero, reportes consolidados y AdminReportPage.
+- Benchmark 1M: 5M filas en db aislada (puerto 5433); todas las consultas < 800 ms << 3 s (docs/BENCHMARK_1M.md).
+- Trazabilidad y Decisiones: MATRIZ_TRAZABILIDAD.md (RF-01 a RF-21, RN-01 a RN-08, P01 a P15) y DECISIONES_DISENO.md (9 decisiones).
+- `npm --prefix frontend test`: 156 aprobadas en 14 archivos; 0 fallidas.
+- `npm --prefix frontend run build`: correcto (dist generado, 0 errores).
+- `dotnet build backend/PosOdoo.slnx --artifacts-path <temporal>`: 0 errores, 0 advertencias.
+- `dotnet test backend/tests/Pos.UnitTests --artifacts-path <temporal>`: 139 aprobadas (111 unitarias + 28 E2E/contrato), 0 fallidas.
+- `py -B scripts/test_run_week3.py`: 6 aprobadas, 0 fallidas.
+- `py -B scripts/test_lan_scripts.py`: 5 aprobadas, 0 fallidas.
+- Total pruebas automatizadas: 306 aprobadas al 100%. 5 integraciones omitidas por no tener Odoo activo.
+- Sin navegador/GUI ni afirmación de validación visual. Sin ventas reales ni alteración de credenciales.

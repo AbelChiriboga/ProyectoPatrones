@@ -19,3 +19,11 @@ dist/
 
 # Durable operation journal (retain across restarts)
 .pos-operations/
+
+# Performance test databases
+*.db
+*.db-journal
+
+# Python
+__pycache__/
+*.pyc

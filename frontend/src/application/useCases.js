@@ -58,12 +58,20 @@ export function createUseCases({ api, session, pending }) {
       return session.read()?.username ?? null;
     },
 
+    currentRole() {
+      return session.read()?.role ?? 'Cashier';
+    },
+
+    getSalesReport({ from, to } = {}) {
+      return api.salesReport({ from, to });
+    },
+
     async login(username, password) {
       if (!username?.trim() || !password) {
         throw new UseCaseError('auth.credentials_required', 'Ingrese usuario y contraseña.');
       }
       const result = await api.login({ username: username.trim(), password });
-      session.save(result.token, result.username);
+      session.save(result.token, result.username, result.role ?? 'Cashier');
       return result.username;
     },
 

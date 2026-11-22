@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Pos.Application.Auth;
 using Pos.Application.Catalog;
+using Pos.Application.Reports;
 using Pos.Application.Sessions;
 using Pos.Infrastructure.Odoo;
 using Pos.Infrastructure.Security;
@@ -34,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<Pos.Application.Sales.ISaleHistoryReader, OdooSaleGateway>();
         services.AddSingleton<Pos.Application.Sales.ISaleOperationStore>(_ => new Pos.Infrastructure.Sales.FileSaleOperationStore(
             configuration["Sales:JournalPath"] ?? Path.Combine(AppContext.BaseDirectory, ".pos-operations")));
+
+        // Reporte global de ventas (solo Admin)
+        services.AddScoped<ISalesReportReader, OdooSalesReportGateway>();
         return services;
     }
 }

@@ -9,7 +9,7 @@ import { displayAmount } from './salesViewModel.js';
 import { createRemovalPresenter } from './removalPresenter.js';
 import RemoveProductDialog from './RemoveProductDialog.jsx';
 
-export default function PosPage({ useCases, username, onLogout, initialView = 'venta' }) {
+export default function PosPage({ useCases, username, onLogout, initialView = 'venta', initialCart = null }) {
   const navigation = useMemo(() => createViewNavigation(browserHashPort), []);
   const view = useSyncExternalStore(navigation.subscribe, navigation.read, () => viewFromHash(initialView));
   const heading = useRef(null);
@@ -18,7 +18,8 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
   const catalogState = useSyncExternalStore(catalog.subscribe, catalog.read, catalog.read);
   useEffect(() => { catalog.load(); return catalog.dispose; }, [catalog]);
   const [checkoutLocked, setCheckoutLocked] = useState(false);
-  const [cart, setCart] = useState(Cart.empty());
+  const [customer, setCustomer] = useState('Consumidor Final');
+  const [cart, setCart] = useState(() => initialCart ?? Cart.empty());
   const [cartMessage, setCartMessage] = useState('');
   const cartRef = useRef(cart);
   const lockedRef = useRef(checkoutLocked);
@@ -47,19 +48,36 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
 
   useEffect(() => {
     let cancelled = false;
-    useCases.listDiscounts().then(result => { if (!cancelled) { setDiscounts(result); setDiscountError(''); } })
-      .catch(() => { if (!cancelled) setDiscountError('No se pudieron consultar los descuentos. Vuelva a intentar más tarde.'); });
+    if (useCases.listDiscounts) {
+      useCases.listDiscounts().then(result => { if (!cancelled) { setDiscounts(result); setDiscountError(''); } })
+        .catch(() => { if (!cancelled) setDiscountError('No se pudieron consultar los descuentos. Vuelva a intentar más tarde.'); });
+    }
     return () => { cancelled = true; };
   }, [useCases]);
   useEffect(() => {
     let cancelled = false;
-    setPreviewLoading(true);
-    useCases.previewSale(cart, discountCode)
-      .then(result => { if (!cancelled) { setPreview({ key: cartKey, value: result }); setPreviewError(''); } })
-      .catch(() => { if (!cancelled) { setPreview(null); setPreviewError('No se pudo verificar el total provisional. Consulte nuevamente antes de cobrar.'); } })
-      .finally(() => { if (!cancelled) setPreviewLoading(false); });
+    if (useCases.previewSale) {
+      setPreviewLoading(true);
+      useCases.previewSale(cart, discountCode)
+        .then(result => { if (!cancelled) { setPreview({ key: cartKey, value: result }); setPreviewError(''); } })
+        .catch(() => { if (!cancelled) { setPreview(null); setPreviewError('No se pudo verificar el total provisional. Consulte nuevamente antes de cobrar.'); } })
+        .finally(() => { if (!cancelled) setPreviewLoading(false); });
+    }
     return () => { cancelled = true; };
   }, [useCases, cart, discountCode, cartKey]);
+
+  // Atajo de teclado global: Escape en cobro regresa rápidamente a venta
+  useEffect(() => {
+    const handleGlobalKeys = e => {
+      if (e.key === 'Escape' && view === 'cobro') {
+        navigation.select('venta');
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', handleGlobalKeys);
+      return () => window.removeEventListener('keydown', handleGlobalKeys);
+    }
+  }, [view, navigation]);
 
   const updateCart = operation => {
     try { setCart(operation()); setCartMessage(''); } catch (error) { setCartMessage(error.message); }
@@ -96,15 +114,28 @@ export default function PosPage({ useCases, username, onLogout, initialView = 'v
         <CatalogPanel state={catalogState} onSearch={catalog.edit} onRetry={catalog.load}
           onAdd={product => updateCart(() => useCases.addToCart(cart, product, 1))} />
         <section className="card cart-panel" aria-labelledby="cart-title">
-          <div className="panel-heading"><div><p className="eyebrow">Revisa tu selección</p><h2 id="cart-title">Carrito</h2></div><span className="count-badge">{cart.lines.length} productos</span></div>
+          <div className="panel-heading"><div><p className="eyebrow">Revisa tu selección</p><h2 id="cart-title">Carrito</h2></div>
+            <div className="cart-meta-tags"><span className="customer-tag" title="Cliente actual">👤 {customer}</span><span className="count-badge">{cart.lines.length} productos</span></div></div>
           {cart.isEmpty && <div className="empty-state"><strong>Tu carrito está vacío</strong><p>Agrega productos del catálogo para comenzar.</p></div>}
           {cartMessage && <p className="error" role="alert">{cartMessage}</p>}
           <ul className="cart">{cart.lines.map(line => <li key={line.productId}>
             <div className="cart-line-heading"><div><strong>{line.name}</strong><span className="hint">{displayAmount(line.unitPrice)} c/u</span></div><span className="price">{displayAmount(lineSubtotal(line))}</span></div>
-            <div className="cart-line-actions"><QuantityInput line={line} onCommit={quantityCallbacks.get(line.productId)} />
+            <div className="cart-line-actions">
+              <QuantityInput line={line} onCommit={quantityCallbacks.get(line.productId)} />
+              <button type="button" className="secondary quick-step-btn" title="Sumar 1 unidad" onClick={() => commitQuantity(line.productId, line.quantity + 1)}>+1</button>
+              <button type="button" className="secondary quick-step-btn" title="Sumar 5 unidades" onClick={() => commitQuantity(line.productId, line.quantity + 5)}>+5</button>
               <button type="button" className="danger" onClick={() => removal.request(line.productId)} aria-label={`Quitar ${line.name}`}>Quitar</button></div>
           </li>)}</ul>
-          <div className="cart-summary"><label htmlFor="discount-code">Descuento autorizado</label>
+          <div className="cart-summary">
+            <div className="customer-selector">
+              <label htmlFor="customer-select">Cliente</label>
+              <select id="customer-select" value={customer} onChange={e => setCustomer(e.target.value)}>
+                <option value="Consumidor Final">Consumidor Final (9999999999999)</option>
+                <option value="Cliente Frecuente">Cliente Frecuente</option>
+                <option value="Factura con Datos">Factura con Datos / RUC</option>
+              </select>
+            </div>
+            <label htmlFor="discount-code">Descuento autorizado</label>
             <select id="discount-code" value={discountCode} onChange={e => setDiscountCode(e.target.value)}>
               {discounts.length === 0 && <option value="none">Sin descuento</option>}
               {discounts.map(discount => <option key={discount.code} value={discount.code}>{discount.name}</option>)}

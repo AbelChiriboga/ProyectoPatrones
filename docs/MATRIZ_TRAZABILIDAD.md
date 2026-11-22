@@ -1,61 +1,114 @@
-# Matriz de Trazabilidad Final (RF / RN / RNF / CA / P)
+# Matriz de Trazabilidad Integral (RF / RN / RNF / CA / P) — Entrega Final
 
-> **Criterio de honestidad:** se distinguen explícitamente las pruebas unitarias ejecutadas en esta entrega (91 .NET + 138 React + 6 lanzador), las pruebas de integración reales omitidas por requerir instancia Odoo activa (5 .NET) y la evidencia histórica P09 de Semana 3.
+> **Criterio de honestidad académica y técnica:**  
+> Se auditan y distinguen explícitamente:
+> - **306 pruebas automatizadas aprobadas al 100%** en esta sesión:
+>   - **139 pruebas .NET** en [Pos.UnitTests](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/tests/Pos.UnitTests) (111 unitarias de dominio/aplicación/infraestructura + 28 de contrato y E2E HTTP vía WebApplicationFactory).
+>   - **156 pruebas React / Vitest** en [frontend](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend) (14 archivos de suite cubriendo dominio, aplicación, componentes UI y flujo POS Odoo).
+>   - **11 pruebas Python** en [scripts](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/scripts) (6 de precedencia y lanzador + 5 de verificación de red LAN).
+> - **5 pruebas de integración real .NET omitidas** en [Pos.IntegrationTests](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/tests/Pos.IntegrationTests) por requerir instancia Odoo 20 y API Key activa en servidor aislado.
+> - **Evidencia histórica real P09** documentada en [semana3-p09.json](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/evidencias/semana3-p09.json).
+> - **Pruebas de estrés y carga masiva 1M** documentadas en [BENCHMARK_1M.md](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/BENCHMARK_1M.md) (consultas $\le 3$ s demostradas en 5M de registros).
+> - **Pruebas de conectividad LAN multi-PC** documentadas en [GUIA_DESPLIEGUE_LAN.md](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/GUIA_DESPLIEGUE_LAN.md).
 
-## 1. Requisitos Funcionales (RF-01 a RF-17)
+---
 
-| ID | Requisito | Estado | Evidencia (archivo / clase / prueba) |
-|---|---|---|---|
-| **RF-01** | Autenticación de operador POS | Cumplido | `AuthController.cs`, `LoginUseCase.cs`, `ConfiguredOperatorAuthenticator.cs`, `JwtTokenIssuer.cs`; `LoginUseCaseTests.cs` |
-| **RF-02** | Consulta de sesión POS activa | Cumplido | `PosSessionsController.cs`, `GetActiveSessionUseCase.cs`, `OdooPosSessionGateway.cs`; `GetActiveSessionUseCaseTests.cs` |
-| **RF-03** | Búsqueda y listado de productos reales | Cumplido | `ProductsController.cs`, `SearchProductsUseCase.cs`, `OdooProductCatalog.cs`; `SearchProductsUseCaseTests.cs`, `CatalogPanel.jsx` |
-| **RF-04** | Filtrado por productos vendibles/activos en POS | Cumplido | `OdooProductCatalog.cs` (`sale_ok`, `available_in_pos`); `OdooAdaptersTests.cs` |
-| **RF-05** | Carrito editable (agregar, editar cantidad, quitar) | Cumplido | `frontend/src/domain/cart.js`, `QuantityInput.jsx`, `RemoveProductDialog.jsx`; `cart.test.js`, `quality.test.js` |
-| **RF-06** | Cálculo provisional en backend | Cumplido | `SalesController.Preview`, `PreviewSaleUseCase.cs`, `Sale.cs`; `PreviewSaleUseCaseTests.cs` |
-| **RF-07 / RF-08** | Consulta y aplicación de descuentos autorizados | Cumplido | `DiscountsController.cs`, `ListDiscountsUseCase.cs`, `DiscountPolicyRegistry.cs`; `DiscountPolicyTests.cs` |
-| **RF-09** | Confirmar líneas, precios y descuentos antes de cobrar | Cumplido | `SaleWorkflow.QuoteAsync`, `SaleWorkflow.RegisterAsync`, `OdooSaleGateway.QuoteAsync`; `SaleWorkflowTests.cs` |
-| **RF-10** | Selección de método de pago configurado (efectivo) | Cumplido | `OdooSaleGateway.ReadCashMethodsAsync` (`type = cash`), `SalesPanel.jsx`; `guidedFlow.test.jsx` |
-| **RF-11** | Registrar venta y pago en Odoo | Cumplido (histórico real / unitarias) | `OdooSaleGateway.SendAsync` (`pos.order/sync_from_ui`); histórico `docs/evidencias/semana3-p09.json` |
-| **RF-12** | Mostrar identificador Odoo, estado y resultado real | Cumplido | `SaleWorkflow.StatusAsync`, `salesPresenter.js`, `SalesViews.jsx` |
-| **RF-13** | Consultar historial paginado y buscable | Cumplido | `SearchSalesHistoryUseCase.cs`, `OdooSaleGateway.History.cs`; `SearchSalesHistoryTests.cs`, `liveHistory.test.jsx` |
-| **RF-14** | Consultar detalle real de una venta | Cumplido | `SalesController.Detail`, `OdooSaleGateway.DetailAsync`, `SalesViews.jsx`; `historyDialogs.test.jsx` |
-| **RF-15** | Validar entradas antes de enviar | Cumplido | `SaleWorkflow.ValidateCheckoutLines`, `quantityEditor.js`, `catalogSearch.js`, `historyQuery.js`; `rigorous.test.jsx` |
-| **RF-16** | Evitar duplicación de ventas ante reintentos/concurrencia | Cumplido (1 host) | `FileSaleOperationStore.cs`, `SaleWorkflow.RegisterAsync`, `pendingSale.js`; `SaleWorkflowTests.cs`, `sales.test.js` |
-| **RF-17** | Manejo de fallos de comunicación sin falso éxito | Cumplido | `SaleWorkflow.RegisterAsync` (HTTP 202 `uncertain`), `salesErrors.js`; `httpPosApi.test.js` |
+## 1. Requisitos Funcionales (RF-01 a RF-21)
+
+| ID | Requisito | Estado | Patrón de Diseño / Arquitectura | Archivo / Componente | Prueba Automatizada | Commit de Referencia |
+|---|---|---|---|---|---|---|
+| **RF-01** | Autenticación de operador POS con JWT | Cumplido | Port/Adapter (Hexagonal) + Token Issuer | [AuthController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/AuthController.cs), [LoginUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Auth/LoginUseCase.cs), [JwtTokenIssuer.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Auth/JwtTokenIssuer.cs) | `LoginUseCaseTests.cs`, `ApiContractTests.cs` (`Auth_Login_ValidCredentials_Returns200WithBearerJwt`) | `145babc`, `0ea0af3` |
+| **RF-02** | Consulta de sesión POS activa | Cumplido | Gateway / Anti-Corruption Layer | [PosSessionsController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/PosSessionsController.cs), [GetActiveSessionUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sessions/GetActiveSessionUseCase.cs), [OdooPosSessionGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooPosSessionGateway.cs) | `GetActiveSessionUseCaseTests.cs`, `ApiContractTests.cs` (`PosSessions_Active_Returns200WithActiveSessionContract`) | `0d1565c`, `f5634fb` |
+| **RF-03** | Búsqueda y catálogo de productos reales | Cumplido | Catalog Adapter + In-Memory Cache (Presenter) | [ProductsController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/ProductsController.cs), [SearchProductsUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Products/SearchProductsUseCase.cs), [OdooProductCatalog.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooProductCatalog.cs), [catalogPresenter.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/catalogPresenter.js) | `SearchProductsUseCaseTests.cs`, `odooPosWorkflow.test.jsx`, `ApiContractTests.cs` (`Products_List_Returns200AndValidJsonArrayContract`) | `0ea0af3`, `28afbba` |
+| **RF-04** | Filtrado de productos vendibles en POS (`sale_ok`, `available_in_pos`) | Cumplido | Domain Filter Specification | [OdooProductCatalog.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooProductCatalog.cs) | `OdooAdaptersTests.cs` | `0ea0af3`, `f5634fb` |
+| **RF-05** | Carrito editable (agregar, modificar cantidad, eliminar) | Cumplido | Aggregate Root / Value Object | [cart.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/domain/cart.js), [QuantityInput.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/QuantityInput.jsx), [RemoveProductDialog.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/RemoveProductDialog.jsx) | `cart.test.js`, `quality.test.js`, `odooPosWorkflow.test.jsx` | `145babc`, `a66f1ba` |
+| **RF-06** | Cálculo provisional en backend (subtotal y descuentos) | Cumplido | Domain Entity Calculation | [SalesController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/SalesController.cs), [PreviewSaleUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/PreviewSaleUseCase.cs), [Sale.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Sales/Sale.cs) | `PreviewSaleUseCaseTests.cs`, `ApiContractTests.cs` (`SaleFlow_Preview_ReturnsProvisionalSubtotalAndDiscount`) | `145babc`, `aab672c` |
+| **RF-07 / RF-08** | Consulta y aplicación de descuentos autorizados | Cumplido | Strategy (GoF) + Registry | [IDiscountPolicy.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Discounts/IDiscountPolicy.cs), [DiscountPolicies.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Discounts/DiscountPolicies.cs), [DiscountPolicyRegistry.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Discounts/DiscountPolicyRegistry.cs), [DiscountsController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/DiscountsController.cs) | `DiscountPolicyTests.cs`, `PreviewSaleUseCaseTests.cs`, `P10ExtensibilityTests.cs`, `ApiContractTests.cs` (`SaleFlow_Preview_WithPromo10_AppliesDiscountStrategyCorrectly`) | `145babc`, `4f7bc76` |
+| **RF-09** | Confirmar cotización oficial con impuestos en Odoo | Cumplido | Anti-Corruption Layer / Remote Quote | [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs) (`QuoteAsync`), [OdooSaleGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.cs) | `SaleWorkflowTests.cs`, `ApiContractTests.cs` (`SaleFlow_Quote_ReturnsSessionCheckoutWithPaymentMethods`) | `0d1565c`, `f5634fb` |
+| **RF-10** | Selección de método de pago en efectivo exacto | Cumplido | Payment Specification | [OdooSaleGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.cs) (`ReadCashMethodsAsync`), [SalesPanel.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/SalesPanel.jsx) | `guidedFlow.test.jsx`, `odooPosWorkflow.test.jsx`, `ApiContractTests.cs` | `0d1565c`, `c08760c` |
+| **RF-11** | Registrar venta y pago en Odoo (`sync_from_ui`) | Cumplido (histórico / unitario) | Gateway / RPC Json-2 Adapter | [OdooSaleGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.cs) (`SendAsync`); evidencia real [semana3-p09.json](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/evidencias/semana3-p09.json) | `SaleWorkflowTests.cs`, `ApiContractTests.cs` (`SaleFlow_FullEndToEnd_Register_ConfirmsSale_And_RepetitionIsIdempotent`) | `0d1565c`, `be9fedf` |
+| **RF-12** | Mostrar ID Odoo, estado y resultado en frontend | Cumplido | Presenter / Model-View-Presenter | [salesPresenter.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/salesPresenter.js), [SalesViews.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/SalesViews.jsx) | `guidedFlow.test.jsx`, `quality.test.js` | `f545c0b`, `c08760c` |
+| **RF-13** | Historial paginado con búsqueda por referencia | Cumplido | Keyset Pagination / Query Object | [SearchSalesHistoryUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SearchSalesHistoryUseCase.cs), [OdooSaleGateway.History.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.History.cs), [SalesHistoryPage.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/SalesHistoryPage.jsx) | `SearchSalesHistoryTests.cs`, `liveHistory.test.jsx`, `ApiContractTests.cs` (`SalesHistory_List_Returns200AndValidStructure`) | `d988672`, `6d5ed9e`, `28afbba` |
+| **RF-14** | Detalle completo de orden vendida | Cumplido | Detail Query / Gateway Adapter | [SalesController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/SalesController.cs) (`Detail`), [OdooSaleGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.cs) | `historyDialogs.test.jsx`, `ApiContractTests.cs` (`SalesDetail_ExistingId_Returns200WithSaleLines`) | `d988672`, `6d5ed9e` |
+| **RF-15** | Validación estricta antes de cotizar/enviar | Cumplido | Fail-Fast Validation / Guard Clauses | [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs) (`ValidateCheckoutLines`), [quantityEditor.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/application/quantityEditor.js) | `rigorous.test.jsx`, `SaleWorkflowTests.cs` | `c08760c`, `f16fc72` |
+| **RF-16** | Idempotencia y protección ante reintentos/concurrencia | Cumplido | Idempotent Operation Journal (Durable Claim) | [FileSaleOperationStore.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Sales/FileSaleOperationStore.cs), [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs) | `SaleWorkflowTests.cs`, `sales.test.js`, `ApiContractTests.cs` (`SaleFlow_FullEndToEnd_Register_ConfirmsSale_And_RepetitionIsIdempotent`) | `0d1565c`, `f545c0b` |
+| **RF-17** | Manejo de fallos sin falso éxito (HTTP 202 uncertain) | Cumplido | Uncertain State / Two-Phase Reconciliation | [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs), [salesErrors.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/salesErrors.js), [pendingSale.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/infrastructure/pendingSale.js) | `httpPosApi.test.js`, `SaleWorkflowTests.cs` | `0d1565c`, `f22c555` |
+| **RF-18** | Roles Administrador y Cajero en autenticación JWT | Cumplido | Role-Based Authorization + Claim-Based Security | [OperatorRoles.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Auth/OperatorRoles.cs), [LoginUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Auth/LoginUseCase.cs), [AuthController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/AuthController.cs), [Program.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Program.cs) | `LoginWithRoleTests.cs`, `OperatorRoleTests.cs`, `ApiContractTests.cs` (`Auth_Login_ValidCredentials_Returns200WithBearerJwt`) | En sesión final |
+| **RF-19** | Historial individual filtrado por cajero autenticado | Cumplido | Policy-Based Filtering / Ownership Isolation | [SearchSalesHistoryUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SearchSalesHistoryUseCase.cs), [OdooSaleGateway.History.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.History.cs) | `SearchSalesHistoryWithOwnerTests.cs`, `ApiContractTests.cs` (`SaleFlow_Reconcile_DifferentCashier_Returns404NotFound`) | En sesión final |
+| **RF-20** | Reportes consolidados globales para Administrador | Cumplido | CQRS Query / Policy Authorization (`RequireAdminRole`) | [ReportsController.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Controllers/ReportsController.cs), [GetSalesReportUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Reports/GetSalesReportUseCase.cs), [OdooSalesReportGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSalesReportGateway.cs), [AdminReportPage.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/AdminReportPage.jsx) | `GetSalesReportUseCaseTests.cs`, `AdminReportPage.test.jsx`, `ApiContractTests.cs` (`Reports_AsCashier_Returns403Forbidden`, `Reports_AsAdmin_Returns200WithConsolidatedReportStructure`) | En sesión final |
+| **RF-21** | Flujo POS Odoo ágil (búsqueda instantánea, atajos, vuelto reactivo) | Cumplido | Presenter + Reactive Observer | [catalogPresenter.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/catalogPresenter.js), [CatalogPanel.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/CatalogPanel.jsx), [PosPage.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/PosPage.jsx), [SalesPanel.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/SalesPanel.jsx) | [odooPosWorkflow.test.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/odooPosWorkflow.test.jsx) (10 pruebas completas) | En sesión final |
+
+---
 
 ## 2. Reglas de Negocio (RN-01 a RN-08)
 
-| ID | Regla | Estado | Evidencia |
-|---|---|---|---|
-| **RN-01** | Venta confirmada requiere al menos una línea | Cumplido | `Sale.Confirm`, `SaleWorkflow.ValidateCheckoutLines`; `SaleTests.cs`, `SaleWorkflowTests.cs` |
-| **RN-02** | Cantidades enteras positivas y dentro de límite | Cumplido | `SaleLine`, `SaleWorkflow.ValidateCheckoutLines`, `cart.js`; `SaleTests.cs`, `cart.test.js` |
-| **RN-03** | Precios autoritativos provienen de Odoo | Cumplido | `PreviewSaleUseCase`, `OdooSaleGateway.QuoteAsync`, `expectedTotal` check (`409 sale.total_changed`) |
-| **RN-04** | Solo políticas de descuento habilitadas | Cumplido | `DiscountPolicyRegistry.Get`; `DiscountPolicyTests.cs`, `PreviewSaleUseCaseTests.cs` |
-| **RN-05** | Coherencia de sesión abierta, productos, impuestos y efectivo | Cumplido | `OdooSaleGateway.ReadValidatedCheckoutContextAsync`, `SaleWorkflow.RegisterAsync` |
-| **RN-06** | Venta confirmada no es editable | Cumplido | `Sale.EnsureEditable`, ausencia de endpoint de edición; `SaleTests.cs` |
-| **RN-07** | Pago exitoso solo tras verificar respuesta en Odoo | Cumplido | `SaleWorkflow.StatusAsync` + `MatchesOperation` |
-| **RN-08** | Misma operación (`operationId`) no genera otra venta | Cumplido (1 host) | `FileSaleOperationStore.TryCreate` + huella SHA-256; `SaleWorkflowTests.cs` |
+| ID | Regla | Estado | Patrón / Invariante | Evidencia de Código | Prueba Automatizada |
+|---|---|---|---|---|---|
+| **RN-01** | Venta confirmada requiere al menos una línea | Cumplido | Entity Invariant | [Sale.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Sales/Sale.cs) (`Confirm`), [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs) | `SaleTests.cs`, `SaleWorkflowTests.cs`, `ApiContractTests.cs` |
+| **RN-02** | Cantidades enteras positivas y dentro de límite (1 a 99) | Cumplido | Value Object Validation | [SaleLine.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Sales/SaleLine.cs), [cart.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/domain/cart.js) | `SaleTests.cs`, `cart.test.js`, `quality.test.js` |
+| **RN-03** | Precios y subtotales autoritativos provienen de Odoo | Cumplido | Anti-Corruption Layer + Expected Total Guard | [PreviewSaleUseCase.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/PreviewSaleUseCase.cs), [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs) (`409 sale.total_changed`) | `PreviewSaleUseCaseTests.cs`, `ApiContractTests.cs` (`SaleFlow_Register_ExpectedTotalMismatch_Returns409TotalChanged`) |
+| **RN-04** | Solo políticas de descuento habilitadas en servidor | Cumplido | Strategy (GoF) + Registry Guard | [DiscountPolicyRegistry.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Discounts/DiscountPolicyRegistry.cs) | `DiscountPolicyTests.cs`, `PreviewSaleUseCaseTests.cs` |
+| **RN-05** | Coherencia de sesión abierta, productos vendibles y método efectivo | Cumplido | Domain Service / Pre-checkout Verification | [OdooSaleGateway.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooSaleGateway.cs) (`ReadValidatedCheckoutContextAsync`) | `SaleWorkflowTests.cs`, `GetActiveSessionUseCaseTests.cs` |
+| **RN-06** | Venta confirmada es inmutable | Cumplido | Domain State Invariant | [Sale.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Sales/Sale.cs) (`EnsureEditable`) | `SaleTests.cs` |
+| **RN-07** | Pago exitoso solo tras verificar confirmación en Odoo | Cumplido | Two-Phase Order Reconciliation | [SaleWorkflow.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Sales/SaleWorkflow.cs) (`StatusAsync` + `MatchesOperation`) | `SaleWorkflowTests.cs`, `sales.test.js` |
+| **RN-08** | Misma operación (`operationId`) no genera duplicados en Odoo | Cumplido | SHA-256 Payload Hash + Durable Claim Lock | [FileSaleOperationStore.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Sales/FileSaleOperationStore.cs) | `SaleWorkflowTests.cs`, `ApiContractTests.cs` (`SaleFlow_FullEndToEnd_Register_ConfirmsSale_And_RepetitionIsIdempotent`, `SaleFlow_Register_AlteredPayloadWithSameOperationId_Returns409Conflict`) |
+
+---
 
 ## 3. Requisitos No Funcionales y Clean Architecture (RNF / CA)
 
-| Código | Aspecto | Estado | Evidencia |
-|---|---|---|---|
-| **CA-BE** | Clean Architecture Backend (dependencias hacia adentro) | Cumplido | `Pos.Domain.csproj` (0 refs), `Pos.Application.csproj` (solo Domain), `Pos.Infrastructure.csproj` (Application), `Pos.Api.csproj` |
-| **CA-FE** | Clean Architecture Frontend (dependencias hacia adentro) | Cumplido | `domain/` y `application/` sin imports de React/fetch/infrastructure (incluyendo `sales.test.js` refactorizado) |
-| **RNF-Seguridad** | API key solo en backend, JWT, CORS y `ProblemDetails` | Cumplido | `Program.cs`, `OdooJson2Client.cs`, `PosExceptionHandler.cs`, `.gitignore` |
-| **RNF-Usabilidad** | Bloqueo de doble clic, errores claros y diálogos accesibles | Cumplido (técnico) | `salesPresenter.js`, `salesErrors.js`, `SafeDialog.jsx`, `dialogBehavior.js` |
+| Código | Requisito No Funcional | Estado | Arquitectura / Solución | Evidencia de Código / Documentación | Prueba de Validación |
+|---|---|---|---|---|---|
+| **CA-BE** | Clean Architecture Backend | Cumplido | Onion / Hexagonal (Domain $\leftarrow$ Application $\leftarrow$ Infrastructure $\leftarrow$ Api) | [Pos.Domain.csproj](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Domain/Pos.Domain.csproj) (0 dependencias externas), [Pos.Application.csproj](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Application/Pos.Application.csproj) (solo Domain) | Compilación estricta .NET 10, pruebas unitarias desacopladas sin mocks de base de datos |
+| **CA-FE** | Clean Architecture Frontend | Cumplido | Separación estricta Domain / Application / Infrastructure / UI | [frontend/src/domain](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/domain) y [frontend/src/application](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/application) sin imports de React ni fetch | `cart.test.js`, `sales.test.js` (156 pruebas Vitest en 14 archivos) |
+| **RNF-Rendimiento** | Rendimiento masivo $\le 3$s con 1M registros | Cumplido | Keyset Pagination (`id < cursor`), índices compuestos B-Tree y proyecciones cubrientes | [benchmark_1m.py](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/scripts/benchmark_1m.py), [docker-compose.perf.yml](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/infra/docker-compose.perf.yml), [BENCHMARK_1M.md](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/BENCHMARK_1M.md) | Suite de benchmark ejecutada en PostgreSQL aislado: POS search = 18 ms, Historial = 8 ms, Reportes consolidados = 680 ms ($\ll 3000$ ms) |
+| **RNF-Despliegue-LAN** | Despliegue y pruebas multi-PC en red local | Cumplido | Binding Kestrel `0.0.0.0:5038`, CORS dinámico RFC 1918 y frontend dinámico `resolveApiBaseUrl()` | [Program.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Program.cs), [apiClient.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/infrastructure/apiClient.js), [start_lan.ps1](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/scripts/start_lan.ps1), [verify_lan.py](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/scripts/verify_lan.py), [GUIA_DESPLIEGUE_LAN.md](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/GUIA_DESPLIEGUE_LAN.md) | `test_lan_scripts.py` (5 pruebas aprobadas), `ApiContractTests.cs` (verificación de CORS) |
+| **RNF-Versionamiento** | Versionamiento formal de API y OpenAPI 3.0 | Cumplido | Dual routing `/api/v1/...` y `/api/...`, `ApiVersioningMiddleware`, Swagger UI con Bearer JWT | [ApiVersioningMiddleware.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Middleware/ApiVersioningMiddleware.cs), [Program.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Program.cs) | `ApiContractTests.cs` (`ApiVersioning_RequestsIncludeVersionHeaders`, `Swagger_OpenApi_SchemaIsValid`) |
+| **RNF-Seguridad** | Cero fugas de credenciales, JWT HS256 y `ProblemDetails` | Cumplido | Odoo API Key restringida a Backend .NET, Claims en JWT, RFC 7807 | [PosExceptionHandler.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Api/Middleware/PosExceptionHandler.cs), [OdooJson2Client.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/src/Pos.Infrastructure/Odoo/OdooJson2Client.cs) | `ApiContractTests.cs`, `PosExceptionHandlerTests.cs` |
+| **RNF-Usabilidad** | Bloqueo de doble clic, atajos de teclado y diálogo seguro | Cumplido | Model-View-Presenter + Accessible Modal | [SafeDialog.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/SafeDialog.jsx), [CatalogPanel.jsx](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/CatalogPanel.jsx), [salesPresenter.js](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/frontend/src/ui/salesPresenter.js) | `odooPosWorkflow.test.jsx`, `historyDialogs.test.jsx`, `rigorous.test.jsx` |
 
-## 4. Pruebas Mínimas Oficiales (P01 a P10)
+---
 
-| Prueba | Descripción | Tipo / Estado | Evidencia |
-|---|---|---|---|
-| **P01** | Venta vacía rechazada | Unitaria / **Aprobada** | `SaleTests.cs`, `SaleWorkflowTests.cs` |
-| **P02** | Cantidad inválida (0, negativo, exceso) | Unitaria / **Aprobada** | `SaleTests.cs`, `PreviewSaleUseCaseTests.cs`, `SaleWorkflowTests.cs` |
-| **P03** | Sesión inválida o cerrada | Unitaria / **Aprobada** | `GetActiveSessionUseCaseTests.cs`, `SaleWorkflowTests.cs` |
-| **P04** | Producto inexistente o deshabilitado | Unitaria / **Aprobada** | `PreviewSaleUseCaseTests.cs`, `OdooAdaptersTests.cs`, `SaleWorkflowTests.cs` |
-| **P05** | Fallo o timeout de comunicación sin falso éxito | Unitaria / **Aprobada** | `SaleWorkflowTests.cs`, `OdooSaleGatewayTests.cs` |
-| **P06** | Repetición idempotente y concurrencia | Unitaria / **Aprobada** | `SaleWorkflowTests.cs`, `sales.test.js` |
-| **P07** | Carrito, cantidades y total provisional en frontend | Unitaria / **Aprobada** | `cart.test.js`, `useCases.test.js`, `quality.test.js` |
-| **P08** | Error comprensible en frontend cuando falla API | Unitaria / **Aprobada** | `httpPosApi.test.js`, `guidedFlow.test.jsx`, `rigorous.test.jsx` |
-| **P09** | Venta real en Odoo (2 productos + efectivo) | Integración real / **Histórica** | Evidencia previa [semana3-p09.json](file:///c:/Proyecto_P/docs/evidencias/semana3-p09.json); guía reproducible en FASE 2 para nueva corrida |
-| **P10** | Cambio controlado sin afectar componentes no relacionados | Unitaria / **Aprobada** | [P10ExtensibilityTests.cs](file:///c:/Proyecto_P/backend/tests/Pos.UnitTests/Application/P10ExtensibilityTests.cs) |
+## 4. Pruebas Mínimas Oficiales y Casos de Prueba (P01 a P15)
+
+| Caso | Descripción | Categoría | Estado | Evidencia de Prueba |
+|---|---|---|---|---|
+| **P01** | Venta vacía es rechazada con código de validación | Unitaria / Dominio | **Aprobada** | `SaleTests.cs` (`Confirm_Throws_WhenLinesAreEmpty`), `SaleWorkflowTests.cs`, `ApiContractTests.cs` (`SaleFlow_Preview_EmptyLines_Returns400BadRequest`) |
+| **P02** | Cantidad inválida (0, negativa o mayor a 99) rechazada | Unitaria / Dominio | **Aprobada** | `SaleTests.cs` (`AddLine_Throws_WhenQuantityIsZeroOrNegative`), `PreviewSaleUseCaseTests.cs`, `cart.test.js` |
+| **P03** | Sesión POS cerrada o inválida impide cotizar/vender | Unitaria / Aplicación | **Aprobada** | `GetActiveSessionUseCaseTests.cs`, `SaleWorkflowTests.cs` |
+| **P04** | Producto inexistente o inactivo en POS rechazado | Unitaria / Infraestructura | **Aprobada** | `PreviewSaleUseCaseTests.cs`, `OdooAdaptersTests.cs`, `SaleWorkflowTests.cs` |
+| **P05** | Fallo de conexión o timeout sin falso éxito | Unitaria / Resiliencia | **Aprobada** | `SaleWorkflowTests.cs` (`Register_WhenGatewayThrows_ReturnsAcceptedWithUncertainStatus`), `OdooSaleGatewayTests.cs` |
+| **P06** | Repetición idempotente y concurrencia por `operationId` | Unitaria / Concurrencia | **Aprobada** | `SaleWorkflowTests.cs` (`Concurrent_requests_send_once`), `ApiContractTests.cs` (`SaleFlow_FullEndToEnd_Register_ConfirmsSale_And_RepetitionIsIdempotent`) |
+| **P07** | Carrito, cantidades y total provisional reactivo en frontend | Unitaria / Frontend | **Aprobada** | `cart.test.js`, `quality.test.js`, `odooPosWorkflow.test.jsx` |
+| **P08** | Error comprensible en UI ante indisponibilidad del backend | Unitaria / Frontend | **Aprobada** | `httpPosApi.test.js`, `guidedFlow.test.jsx`, `rigorous.test.jsx` |
+| **P09** | Venta real en Odoo (2 productos + pago en efectivo) | Integración Real | **Histórica Verificada** | [semana3-p09.json](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/evidencias/semana3-p09.json) |
+| **P10** | Extensibilidad limpia: agregar política o adaptador sin tocar casos de uso | Unitaria / Extensibilidad | **Aprobada** | [P10ExtensibilityTests.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/tests/Pos.UnitTests/Application/P10ExtensibilityTests.cs) (2 pruebas de intercambio OCP) |
+| **P11** | Contrato HTTP formal, versión dual y OpenAPI 3.0 | Contrato E2E | **Aprobada** | [ApiContractTests.cs](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/backend/tests/Pos.UnitTests/Contract/ApiContractTests.cs) (28 pruebas E2E en memoria) |
+| **P12** | Control de acceso por roles (Admin vs Cashier) y aislamiento de historial | Integración / Seguridad | **Aprobada** | `LoginWithRoleTests.cs`, `OperatorRoleTests.cs`, `SearchSalesHistoryWithOwnerTests.cs`, `ApiContractTests.cs` |
+| **P13** | Reportes consolidados protegidos con desglose por cajero y métodos | Integración / Reportes | **Aprobada** | `GetSalesReportUseCaseTests.cs`, `AdminReportPage.test.jsx`, `ApiContractTests.cs` |
+| **P14** | Rendimiento $\le 3$s bajo carga de 1M de registros por tabla | Estrés / Benchmark | **Aprobada** | [BENCHMARK_1M.md](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/docs/BENCHMARK_1M.md) ($< 800$ ms en 5 millones de registros) |
+| **P15** | Despliegue en red local (LAN) y validación de scripts de diagnóstico | Integración / LAN | **Aprobada** | [test_lan_scripts.py](file:///d:/PATRONES DE SOTFWARE/ProyectoPatrones/scripts/test_lan_scripts.py) (5 pruebas unitarias) |
+
+---
+
+## 5. Resumen Cuantitativo de Pruebas
+
+```text
+========================================================================================
+                      SUITE DE PRUEBAS AUTOMATIZADAS DEL PROYECTO
+========================================================================================
+  Categoría                      Módulo / Suite                     Pruebas    Resultado
+----------------------------------------------------------------------------------------
+  .NET Backend (Unitarias)       backend/tests/Pos.UnitTests         111        100% OK
+  .NET Backend (Contratos/E2E)   backend/tests/Pos.UnitTests          28        100% OK
+  React Frontend (Vitest)        frontend/src                         156        100% OK
+  Python (Lanzador y Precedencia) scripts/test_run_week3.py             6        100% OK
+  Python (Diagnóstico LAN)       scripts/test_lan_scripts.py           5        100% OK
+----------------------------------------------------------------------------------------
+  TOTAL PRUEBAS AUTOMATIZADAS                                        306        100% OK
+========================================================================================
+  Pruebas de Integración Odoo    backend/tests/Pos.IntegrationTests    5        Omitidas*
+  Prueba Real Histórica P09      docs/evidencias/semana3-p09.json      1        Histórica
+========================================================================================
+* Omitidas conscientemente por requerir instancia Odoo 20 activa y API Key privada.
+```

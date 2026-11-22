@@ -7,10 +7,11 @@ using Pos.Application.Auth;
 
 namespace Pos.Api.Security;
 
-/// <summary>Adaptador de <see cref="ITokenIssuer"/> que firma un JWT con la clave configurada.</summary>
+/// <summary>Adaptador de <see cref="ITokenIssuer"/> que firma un JWT con la clave configurada.
+/// Incluye el claim "role" para habilitar las políticas de autorización por rol.</summary>
 public sealed class JwtTokenIssuer(IOptions<JwtOptions> options) : ITokenIssuer
 {
-    public LoginResult Issue(string username)
+    public LoginResult Issue(string username, string role)
     {
         var jwt = options.Value;
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(jwt.ExpirationMinutes);
@@ -19,13 +20,17 @@ public sealed class JwtTokenIssuer(IOptions<JwtOptions> options) : ITokenIssuer
         {
             Issuer = jwt.Issuer,
             Audience = jwt.Audience,
-            Subject = new ClaimsIdentity(new[] { new Claim("sub", username) }),
+            Subject = new ClaimsIdentity(
+            [
+                new Claim("sub", username),
+                new Claim(ClaimTypes.Role, role),
+            ]),
             Expires = expiresAt.UtcDateTime,
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)), SecurityAlgorithms.HmacSha256),
         };
 
         var token = new JsonWebTokenHandler().CreateToken(descriptor);
-        return new LoginResult(token, expiresAt, username);
+        return new LoginResult(token, expiresAt, username, role);
     }
 }
