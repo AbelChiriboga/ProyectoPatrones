@@ -1,6 +1,6 @@
 # Reporte de Pruebas de Rendimiento y Benchmark bajo 1,000,000 de Registros
 
-- **Fecha:** 2026-11-22 18:50:50 UTC
+- **Fecha:** 2026-11-23 15:00:09 UTC
 - **Estado:** **APROBADO** — Todas las consultas críticas responden en menos de 3.0 segundos (latencias promedio < 50 ms).
 - **Volumen evaluado:** **1,000,000 registros por tabla principal** (Total acumulado: 5,000,000 filas entre productos, clientes, ventas, líneas de venta y pagos).
 
@@ -21,12 +21,12 @@ Se implementó inserción por lotes con generación mediante secuencias y `execu
 
 | Tabla Principal | Registros Poblados | Tiempo de Inserción (s) | Throughput (reg/s) |
 |---|---|---|---|
-| `products` (Catálogo) | 1,000,000 | 27.69 s | 36,108 reg/s |
-| `customers` (Clientes) | 1,000,000 | 36.12 s | 27,685 reg/s |
-| `sales` (Ventas POS) | 1,000,000 | 110.05 s (ventas + líneas + pagos) | 27,260 reg/s |
+| `products` (Catálogo) | 1,000,000 | 4.98 s | 200,981 reg/s |
+| `customers` (Clientes) | 1,000,000 | 6.38 s | 156,706 reg/s |
+| `sales` (Ventas POS) | 1,000,000 | 18.36 s (ventas + líneas + pagos) | 163,375 reg/s |
 | `sale_lines` (Detalle ventas) | 1,000,000 | incluido arriba | incluido arriba |
 | `payments` (Pagos) | 1,000,000 | incluido arriba | incluido arriba |
-| **Total General** | **5,000,000 filas** | **174.05 s** | **28,728 reg/s** |
+| **Total General** | **5,000,000 filas** | **29.75 s** | **168,052 reg/s** |
 
 ---
 
@@ -44,7 +44,7 @@ Se evaluaron las consultas antes y después de aplicar índices compuestos y cub
   ```
 - **Sin índice:** `SCAN products | USE TEMP B-TREE FOR ORDER BY` (Full Table Scan de 1,000,000 registros).
 - **Con índice cubriente `idx_products_pos_search`:** `SEARCH products USING INDEX idx_products_pos_search (sale_ok=? AND available_in_pos=?)`.
-- **Mejora:** De 1197.45 ms a **742.733 ms** (2x más rápido).
+- **Mejora:** De 230.16 ms a **144.294 ms** (2x más rápido).
 
 ---
 
@@ -54,14 +54,14 @@ Se evaluaron las consultas antes y después de aplicar índices compuestos y cub
   SELECT id, pos_reference, date_order, amount_total FROM sales
   WHERE config_id = 1 AND user_id = 2 ORDER BY id DESC LIMIT 20 OFFSET 500000;
   ```
-  *Plan:* `SEARCH sales USING INDEX idx_sales_cashier_history_keyset (config_id=? AND user_id=?)` (Escaneo de 500,020 filas para descartarlas). Tiempo promedio: **102.86 ms**.
+  *Plan:* `SEARCH sales USING INDEX idx_sales_cashier_history_keyset (config_id=? AND user_id=?)` (Escaneo de 500,020 filas para descartarlas). Tiempo promedio: **15.10 ms**.
 - **Paginación Keyset Optimizada (Aditiva en backend):**
   ```sql
   SELECT id, pos_reference, date_order, amount_total FROM sales
   WHERE config_id = 1 AND user_id = 2 AND id < 500000 ORDER BY id DESC LIMIT 20;
   ```
-  *Plan:* `SEARCH sales USING INDEX idx_sales_cashier_history_keyset (config_id=? AND user_id=? AND id<?)` (Búsqueda B-Tree directa en el punto exacto del cursor). Tiempo promedio: **1.041 ms**.
-- **Impacto:** Keyset pagination es **98.8x más rápido** y mantiene tiempo $O(\log N)$ constante sin importar la profundidad de la página.
+  *Plan:* `SEARCH sales USING INDEX idx_sales_cashier_history_keyset (config_id=? AND user_id=? AND id<?)` (Búsqueda B-Tree directa en el punto exacto del cursor). Tiempo promedio: **0.154 ms**.
+- **Impacto:** Keyset pagination es **98.0x más rápido** y mantiene tiempo $O(\log N)$ constante sin importar la profundidad de la página.
 
 ---
 
@@ -73,8 +73,8 @@ Se evaluaron las consultas antes y después de aplicar índices compuestos y cub
   WHERE config_id = 1 AND date_order >= '2026-03-01 00:00:00' AND date_order <= '2026-03-31 23:59:59'
   GROUP BY user_id ORDER BY user_id ASC;
   ```
-- **Sin índice:** `SCAN sales | USE TEMP B-TREE FOR GROUP BY` (1735.61 ms).
-- **Con índice compuesto `idx_sales_reports_date`:** `SEARCH sales USING COVERING INDEX idx_sales_reports_date (config_id=? AND date_order>? AND date_order<?) | USE TEMP B-TREE FOR GROUP BY` (**346.576 ms**).
+- **Sin índice:** `SCAN sales | USE TEMP B-TREE FOR GROUP BY` (438.11 ms).
+- **Con índice compuesto `idx_sales_reports_date`:** `SEARCH sales USING COVERING INDEX idx_sales_reports_date (config_id=? AND date_order>? AND date_order<?) | USE TEMP B-TREE FOR GROUP BY` (**97.854 ms**).
 
 ---
 
@@ -82,13 +82,13 @@ Se evaluaron las consultas antes y después de aplicar índices compuestos y cub
 
 | Consulta Crítica | Latencia Mínima | Latencia Promedio | Latencia P95 | Latencia Máxima | Límite Máximo | Cumplimiento |
 |---|---|---|---|---|---|---|
-| **1. Búsqueda Catálogo POS** | 614.166 ms | **742.733 ms** | 929.263 ms | 929.263 ms | 3,000 ms | **CUMPLE** |
-| **2. Historial Cajero (Keyset)** | 0.788 ms | **1.041 ms** | 1.341 ms | 1.341 ms | 3,000 ms | **CUMPLE** |
-| **3. Reporte Consolidado Cajero** | 287.150 ms | **346.576 ms** | 433.676 ms | 433.676 ms | 3,000 ms | **CUMPLE** |
-| **4. Reporte Consolidado Pagos** | 631.918 ms | **743.440 ms** | 832.000 ms | 832.000 ms | 3,000 ms | **CUMPLE** |
+| **1. Búsqueda Catálogo POS** | 121.667 ms | **144.294 ms** | 193.521 ms | 193.521 ms | 3,000 ms | **CUMPLE** |
+| **2. Historial Cajero (Keyset)** | 0.081 ms | **0.154 ms** | 0.382 ms | 0.382 ms | 3,000 ms | **CUMPLE** |
+| **3. Reporte Consolidado Cajero** | 90.278 ms | **97.854 ms** | 107.009 ms | 107.009 ms | 3,000 ms | **CUMPLE** |
+| **4. Reporte Consolidado Pagos** | 157.723 ms | **182.497 ms** | 201.796 ms | 201.796 ms | 3,000 ms | **CUMPLE** |
 
 > [!NOTE]
-> Todas las consultas críticas responden en **menos de 929.26 ms**, situándose muy por debajo del umbral de **3.0 segundos (3,000 ms)** exigido para 1,000,000 de registros.
+> Todas las consultas críticas responden en **menos de 201.80 ms**, situándose muy por debajo del umbral de **3.0 segundos (3,000 ms)** exigido para 1,000,000 de registros.
 
 ---
 
