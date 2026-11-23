@@ -17,13 +17,13 @@ public sealed partial class OdooSaleGateway : ISaleHistoryReader
             domain.Add(new object[] { "pos_reference", "ilike", query.Search });
         }
 
-        // Filtro por cajero: si owner no es null se restringe por pos_reference o employee_id.login.
-        // La estrategia más portable en Odoo JSON-2 sin unión de modelos es filtrar por user_id.name
-        // usando ilike; devuelve solo las órdenes cuyo responsable coincide con el username configurado.
-        // Nota: en entornos donde employee_id difiere del login, el Admin puede ver el historial completo.
+        // Filtro por cajero: si owner no es null se restringe por el login del cajero o por el usuario
+        // de integración de Odoo (pos_integration) a través del cual el backend registra las ventas en este POS.
         if (query.Owner is not null)
         {
+            domain.Add("|");
             domain.Add(new object[] { "user_id.login", "ilike", query.Owner });
+            domain.Add(new object[] { "user_id.login", "=", "pos_integration" });
         }
 
         var rows = await Read("pos.order", domain.ToArray(),
