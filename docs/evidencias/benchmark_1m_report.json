@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-22T18:50:50.226576Z",
+  "timestamp": "2026-11-23T15:00:09.584714+00:00",
   "dataset_rows": {
     "products": 1000000,
     "customers": 1000000,
@@ -9,10 +9,10 @@
     "total_records": 5000000
   },
   "seeding_times_seconds": {
-    "products": 27.69,
-    "customers": 36.12,
-    "sales_lines_payments": 110.05,
-    "total": 174.05
+    "products": 4.98,
+    "customers": 6.38,
+    "sales_lines_payments": 18.36,
+    "total": 29.75
   },
   "execution_plans": {
     "catalog_search": {
@@ -33,10 +33,10 @@
   },
   "benchmarks_ms": {
     "catalog_search": {
-      "min_ms": 614.166,
-      "avg_ms": 742.733,
-      "max_ms": 929.263,
-      "p95_ms": 929.263,
+      "min_ms": 121.667,
+      "avg_ms": 144.294,
+      "max_ms": 193.521,
+      "p95_ms": 193.521,
       "row_count": 20,
       "sample": [
         [
@@ -63,10 +63,10 @@
       ]
     },
     "cashier_history_keyset": {
-      "min_ms": 0.788,
-      "avg_ms": 1.041,
-      "max_ms": 1.341,
-      "p95_ms": 1.341,
+      "min_ms": 0.081,
+      "avg_ms": 0.154,
+      "max_ms": 0.382,
+      "p95_ms": 0.382,
       "row_count": 20,
       "sample": [
         [
@@ -93,18 +93,18 @@
       ]
     },
     "cashier_history_offset_high": {
-      "min_ms": 74.401,
-      "avg_ms": 102.862,
-      "max_ms": 138.578,
-      "p95_ms": 138.578,
+      "min_ms": 12.618,
+      "avg_ms": 15.097,
+      "max_ms": 17.063,
+      "p95_ms": 17.063,
       "row_count": 0,
       "sample": []
     },
     "sales_report_cashier": {
-      "min_ms": 287.15,
-      "avg_ms": 346.576,
-      "max_ms": 433.676,
-      "p95_ms": 433.676,
+      "min_ms": 90.278,
+      "avg_ms": 97.854,
+      "max_ms": 107.009,
+      "p95_ms": 107.009,
       "row_count": 5,
       "sample": [
         [
@@ -125,10 +125,10 @@
       ]
     },
     "sales_report_payments": {
-      "min_ms": 631.918,
-      "avg_ms": 743.44,
-      "max_ms": 832.0,
-      "p95_ms": 832.0,
+      "min_ms": 157.723,
+      "avg_ms": 182.497,
+      "max_ms": 201.796,
+      "p95_ms": 201.796,
       "row_count": 3,
       "sample": [
         [
